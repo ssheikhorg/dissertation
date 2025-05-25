@@ -1,12 +1,14 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+from transformers import pipeline
 
 
-def load_hf_model(model_name):
-    model_map = {
-        'llama2': 'meta-llama/Llama-2-7b-chat-hf',
-        'mistral': 'mistralai/Mistral-7B-v0.1'
-    }
+class HuggingFaceModel:
+    def __init__(self, model_name):
+        self.pipe = pipeline(
+            "text-generation",
+            model=model_name,
+            device="cuda" if torch.cuda.is_available() else "cpu"
+        )
 
-    tokenizer = AutoTokenizer.from_pretrained(model_map[model_name])
-    model = AutoModelForCausalLM.from_pretrained(model_map[model_name])
-    return model, tokenizer
+    def generate(self, prompt, **kwargs):
+        return self.pipe(prompt, **kwargs)[0]['generated_text']

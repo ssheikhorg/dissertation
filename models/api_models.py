@@ -4,21 +4,18 @@ from anthropic import Anthropic
 import google.generativeai as genai
 
 
-class ModelEvaluator:
-    def __init__(self):
-        self.clients = {
-            'gpt': openai.Client(),
-            'claude': Anthropic(),
-            'gemini': genai.configure(api_key='...')
-        }
+class OpenAIClient:
+    def __init__(self, api_key):
+        self.client = openai.Client(api_key)
 
-    def query_model(self, model_name, prompt):
-        if model_name == 'gpt':
-            response = self.clients['gpt'].chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return response.choices[0].message.content
-        elif model_name == 'claude':
-            pass
-    # Similar for other models
+    def generate(self, prompt, **kwargs):
+        response = self.client.chat.completions.create(
+            model=kwargs.get('model', 'gpt-4'),
+            messages=[{"role": "user", "content": prompt}],
+            temperature=kwargs.get('temp', 0.7)
+        )
+        return response.choices[0].message.content
+
+
+class AnthropicClient:
+    pass
