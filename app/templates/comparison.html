@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Model Comparison</h1>
+
+<div class="controls">
+    <select id="dataset-select" hx-get="/api/datasets" hx-target="#prompt-count">
+        <option value="truthful_qa">Truthful QA</option>
+        <option value="winobias">Winobias</option>
+    </select>
+
+    <div id="prompt-count">
+        <input type="range" id="sample-slider" min="1" max="20" value="5">
+        <span id="sample-value">5</span> prompts
+    </div>
+
+    <div class="model-selection">
+        <select id="model1-select">
+            <option value="gpt-3.5">GPT-3.5</option>
+            <option value="gpt-4">GPT-4</option>
+            <option value="claude-2">Claude 2</option>
+            <option value="llama-2">LLaMA 2</option>
+        </select>
+        <select id="model2-select">
+            <option value="gpt-4">GPT-4</option>
+            <option value="gpt-3.5">GPT-3.5</option>
+            <option value="claude-2">Claude 2</option>
+            <option value="llama-2">LLaMA 2</option>
+        </select>
+    </div>
+
+    <button hx-post="/api/compare"
+            hx-include="[id='dataset-select'], [id='sample-slider'], [id='model1-select'], [id='model2-select']"
+            hx-target="#results"
+            hx-indicator=".loading">
+        Compare Models
+    </button>
+</div>
+
+<div class="loading" hx-indicator=".loading">
+    <img src="/static/images/loading.gif" alt="Loading...">
+</div>
+
+<div id="results"></div>
+
+<script>
+    document.getElementById('sample-slider').addEventListener('input', function() {
+        document.getElementById('sample-value').textContent = this.value;
+    });
+</script>
+{% endblock %}

@@ -9,3 +9,6 @@ matplotlib
 seaborn
 plotly
 huggingface_hub
+fastapi
+uvicorn
+pydantic

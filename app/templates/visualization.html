@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Model Evaluation Visualizations</h1>
+
+<div class="controls">
+    <select id="metric-select">
+        <option value="rougeL">ROUGE-L</option>
+        <option value="exact_match">Exact Match</option>
+        <option value="toxicity_score">Toxicity Score</option>
+        <option value="self_consistency">Self Consistency</option>
+    </select>
+
+    <button hx-get="/api/visualize"
+            hx-include="#metric-select"
+            hx-target="#visualization"
+            hx-indicator=".loading">
+        Generate Visualization
+    </button>
+</div>
+
+<div class="loading" hx-indicator=".loading">
+    <img src="/static/images/loading.gif" alt="Loading...">
+</div>
+
+<div id="visualization"></div>
+{% endblock %}
