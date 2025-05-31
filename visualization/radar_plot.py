@@ -1,13 +1,26 @@
 import plotly.express as px
+import pandas as pd
+from typing import Dict, List
 
-def plot_radar(dataframe, metrics, models):
+
+def create_radar_plot(results: Dict[str, Dict], metrics: List[str]) -> None:
+    plot_data = []
+    for model, scores in results.items():
+        for metric in metrics:
+            plot_data.append({
+                'Model': model,
+                'Metric': metric,
+                'Score': scores[metric]
+            })
+
+    df = pd.DataFrame(plot_data)
     fig = px.line_polar(
-        dataframe,
-        r='value',
-        theta='metric',
-        color='model',
+        df,
+        r='Score',
+        theta='Metric',
+        color='Model',
         line_close=True,
-        template='plotly_dark'
+        template='plotly_dark',
+        title='Model Performance Comparison'
     )
-    fig.update_layout(title='Model Performance Comparison')
-    return fig
+    fig.show()
