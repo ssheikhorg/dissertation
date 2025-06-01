@@ -1,27 +1,50 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<link href="/static/css/visualization.css" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<h1>Model Evaluation Visualizations</h1>
+<div class="visualization-container">
+    <h1>Model Evaluation Visualizations</h1>
 
-<div class="controls">
-    <select id="metric-select">
-        <option value="rougeL">ROUGE-L</option>
-        <option value="exact_match">Exact Match</option>
-        <option value="toxicity_score">Toxicity Score</option>
-        <option value="self_consistency">Self Consistency</option>
-    </select>
+    <div class="controls">
+        <div class="control-group">
+            <label for="visualization-type">Visualization Type:</label>
+            <select id="visualization-type">
+                <option value="bar">Bar Chart</option>
+                <option value="radar">Radar Chart</option>
+                <option value="scatter">Scatter Plot</option>
+            </select>
+        </div>
 
-    <button hx-get="/api/visualize"
-            hx-include="#metric-select"
-            hx-target="#visualization"
-            hx-indicator=".loading">
-        Generate Visualization
-    </button>
+        <div class="control-group">
+            <label for="metric-select">Metric:</label>
+            <select id="metric-select">
+                <option value="rougeL">ROUGE-L</option>
+                <option value="exact_match">Exact Match</option>
+                <option value="toxicity_score">Toxicity Score</option>
+                <option value="self_consistency">Self Consistency</option>
+            </select>
+        </div>
+
+        <button
+            hx-get="/api/visualize"
+            hx-include="#visualization-type, #metric-select"
+            hx-target="#visualization-container"
+            hx-indicator=".loading"
+            class="primary-button">
+            Generate Visualization
+        </button>
+    </div>
+
+    <div class="loading" hx-indicator=".loading">
+        <div class="spinner"></div>
+        <p>Generating visualization...</p>
+    </div>
+
+    <div id="visualization-container" class="chart-container">
+        <!-- Visualization will be rendered here -->
+    </div>
 </div>
-
-<div class="loading" hx-indicator=".loading">
-    <img src="/static/images/loading.gif" alt="Loading...">
-</div>
-
-<div id="visualization"></div>
 {% endblock %}

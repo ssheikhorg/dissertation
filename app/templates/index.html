@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link href="/static/css/index.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>Model Evaluation Dashboard</h1>
+    <p>Compare and evaluate different LLM models with comprehensive metrics</p>
+</div>
+
+<div class="features">
+    <div class="feature-card" hx-boost="true">
+        <a href="/evaluate">
+            <h2>Single Model Evaluation</h2>
+            <p>Test individual model performance with detailed metrics</p>
+        </a>
+    </div>
+
+    <div class="feature-card" hx-boost="true">
+        <a href="/compare">
+            <h2>Model Comparison</h2>
+            <p>Compare multiple models side-by-side</p>
+        </a>
+    </div>
+
+    <div class="feature-card" hx-boost="true">
+        <a href="/visualize">
+            <h2>Visualizations</h2>
+            <p>Interactive charts and analysis</p>
+        </a>
+    </div>
+</div>
+
+<div class="recent-evaluations">
+    <h2>Recent Evaluations</h2>
+    <div hx-get="/api/recent-evaluations" hx-trigger="load">
+        <p>Loading recent evaluations...</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+/* Global styles that apply to all pages */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+}
+
+nav {
+    background-color: #2c3e50;
+    padding: 1rem;
+    display: flex;
+    gap: 1rem;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+nav a:hover {
+    background-color: #34495e;
+}
+
+main {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Loading spinner */
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top: 4px solid #4CAF50;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+}
+
+.htmx-request .loading {
+    display: block;
+}
+
+/* Buttons */
+.primary-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    align-self: end;
+    transition: background-color 0.2s;
+}
+
+.primary-button:hover {
+    background-color: #45a049;
+}
+
+/* Control groups */
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.control-group label {
+    font-weight: 500;
+    color: #555;
+}
