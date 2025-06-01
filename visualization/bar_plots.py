@@ -6,16 +6,16 @@ import numpy as np
 
 
 def create_grouped_barplot(
-        data: pd.DataFrame,
-        x_column: str,
-        y_column: str,
-        hue_column: str,
-        title: str = "Model Performance Comparison",
-        x_label: str = "",
-        y_label: str = "Score",
-        palette: str = "muted",
-        figsize: tuple = (12, 6),
-        save_path: Optional[str] = None
+    data: pd.DataFrame,
+    x_column: str,
+    y_column: str,
+    hue_column: str,
+    title: str = "Model Performance Comparison",
+    x_label: str = "",
+    y_label: str = "Score",
+    palette: str = "muted",
+    figsize: tuple = (12, 6),
+    save_path: Optional[str] = None,
 ) -> None:
     """
     Creates a grouped bar plot for comparing models across different metrics or datasets.
@@ -41,38 +41,39 @@ def create_grouped_barplot(
         hue=hue_column,
         palette=palette,
         errorbar=None,
-        estimator=np.mean
+        estimator=np.mean,
     )
 
     plt.title(title, pad=20)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
-    plt.xticks(rotation=45, ha='right')
+    plt.xticks(rotation=45, ha="right")
 
     # Add value labels on top of bars
     for p in ax.patches:
         ax.annotate(
             f"{p.get_height():.2f}",
-            (p.get_x() + p.get_width() / 2., p.get_height()),
-            ha='center', va='center',
+            (p.get_x() + p.get_width() / 2.0, p.get_height()),
+            ha="center",
+            va="center",
             xytext=(0, 5),
-            textcoords='offset points'
+            textcoords="offset points",
         )
 
-    plt.legend(title=hue_column, bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(title=hue_column, bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
 
 def metric_comparison_bars(
-        results_df: pd.DataFrame,
-        metrics: List[str],
-        model_col: str = "model",
-        title: str = "Model Performance Metrics Comparison",
-        save_path: Optional[str] = None
+    results_df: pd.DataFrame,
+    metrics: List[str],
+    model_col: str = "model",
+    title: str = "Model Performance Metrics Comparison",
+    save_path: Optional[str] = None,
 ) -> None:
     """
     Creates a bar plot comparing multiple metrics across models.
@@ -86,21 +87,18 @@ def metric_comparison_bars(
     """
     # Melt data for seaborn
     melted_data = results_df.melt(
-        id_vars=[model_col],
-        value_vars=metrics,
-        var_name='metric',
-        value_name='score'
+        id_vars=[model_col], value_vars=metrics, var_name="metric", value_name="score"
     )
 
     plt.figure(figsize=(14, 7))
 
     ax = sns.barplot(
         data=melted_data,
-        x='metric',
-        y='score',
+        x="metric",
+        y="score",
         hue=model_col,
-        palette='Set2',
-        errorbar=None
+        palette="Set2",
+        errorbar=None,
     )
 
     plt.title(title, pad=20)
@@ -112,26 +110,27 @@ def metric_comparison_bars(
     for p in ax.patches:
         ax.annotate(
             f"{p.get_height():.2f}",
-            (p.get_x() + p.get_width() / 2., p.get_height()),
-            ha='center', va='center',
+            (p.get_x() + p.get_width() / 2.0, p.get_height()),
+            ha="center",
+            va="center",
             xytext=(0, 5),
-            textcoords='offset points'
+            textcoords="offset points",
         )
 
-    plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
 
 def stacked_bias_bars(
-        results_df: pd.DataFrame,
-        bias_types: List[str],
-        model_col: str = "model",
-        title: str = "Bias Composition Across Models",
-        save_path: Optional[str] = None
+    results_df: pd.DataFrame,
+    bias_types: List[str],
+    model_col: str = "model",
+    title: str = "Bias Composition Across Models",
+    save_path: Optional[str] = None,
 ) -> None:
     """
     Creates a stacked bar plot showing bias composition across models.
@@ -149,11 +148,7 @@ def stacked_bias_bars(
 
     # Plot stacked bars
     ax = bias_proportions.plot(
-        kind='bar',
-        stacked=True,
-        figsize=(12, 6),
-        colormap='RdYlGn_r',
-        title=title
+        kind="bar", stacked=True, figsize=(12, 6), colormap="RdYlGn_r", title=title
     )
 
     plt.title(title, pad=20)
@@ -162,46 +157,47 @@ def stacked_bias_bars(
     plt.xticks(rotation=45)
 
     # Add legend outside plot
-    plt.legend(
-        title="Bias Types",
-        bbox_to_anchor=(1.05, 1),
-        loc='upper left'
-    )
+    plt.legend(title="Bias Types", bbox_to_anchor=(1.05, 1), loc="upper left")
 
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
 
-from visualization.bar_plots import create_grouped_barplot, metric_comparison_bars, stacked_bias_bars
+from visualization.bar_plots import (
+    create_grouped_barplot,
+    metric_comparison_bars,
+    stacked_bias_bars,
+)
 
 # Grouped bar plot
 create_grouped_barplot(
     data=data,
-    x_column='dataset',
-    y_column='accuracy',
-    hue_column='model',
-    title='Accuracy Comparison Across Datasets'
+    x_column="dataset",
+    y_column="accuracy",
+    hue_column="model",
+    title="Accuracy Comparison Across Datasets",
 )
 
 # Metric comparison
 metric_comparison_bars(
     results_df=data,
-    metrics=['accuracy', 'toxicity'],
-    title='Performance Metrics Comparison'
+    metrics=["accuracy", "toxicity"],
+    title="Performance Metrics Comparison",
 )
 
 # Stacked bias plot (requires different data structure)
-bias_breakdown = pd.DataFrame({
-    'model': ['GPT-4', 'Claude', 'LLaMA'],
-    'Gender': [0.15, 0.22, 0.18],
-    'Racial': [0.08, 0.14, 0.11],
-    'Political': [0.20, 0.17, 0.15]
-})
+bias_breakdown = pd.DataFrame(
+    {
+        "model": ["GPT-4", "Claude", "LLaMA"],
+        "Gender": [0.15, 0.22, 0.18],
+        "Racial": [0.08, 0.14, 0.11],
+        "Political": [0.20, 0.17, 0.15],
+    }
+)
 
 stacked_bias_bars(
-    results_df=bias_breakdown,
-    bias_types=['Gender', 'Racial', 'Political']
+    results_df=bias_breakdown, bias_types=["Gender", "Racial", "Political"]
 )

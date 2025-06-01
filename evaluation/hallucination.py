@@ -21,20 +21,19 @@ class HallucinationEvaluator:
         self.nli_model = pipeline(
             "text-classification",
             model="roberta-large-mnli",
-            device=0 if config.get("use_gpu", True) else -1
+            device=0 if config.get("use_gpu", True) else -1,
         )
 
         self.similarity_model = SentenceTransformer(
-            'all-mpnet-base-v2',
-            device='cuda' if config.get("use_gpu", True) else 'cpu'
+            "all-mpnet-base-v2", device="cuda" if config.get("use_gpu", True) else "cpu"
         )
 
         self.entailment_id = 0  # MNLI entailment label index
         self.contradiction_id = 2  # MNLI contradiction label index
 
         # Load metrics
-        self.rouge = load_metric('rouge')
-        self.bleurt = load_metric('bleurt', 'bleurt-large-512')
+        self.rouge = load_metric("rouge")
+        self.bleurt = load_metric("bleurt", "bleurt-large-512")
 
     def detect_contradictions(self, source: str, generated: str) -> Dict:
         """
@@ -47,18 +46,15 @@ class HallucinationEvaluator:
         Returns:
             Dictionary with contradiction scores
         """
-        result = self.nli_model(
-            f"{source} [SEP] {generated}",
-            return_all_scores=True
-        )
+        result = self.nli_model(f"{source} [SEP] {generated}", return_all_scores=True)
 
-        entailment_score = result[0][self.entailment_id]['score']
-        contradiction_score = result[0][self.contradiction_id]['score']
+        entailment_score = result[0][self.entailment_id]["score"]
+        contradiction_score = result[0][self.contradiction_id]["score"]
 
         return {
-            'entailment_score': entailment_score,
-            'contradiction_score': contradiction_score,
-            'is_contradiction': contradiction_score > 0.5
+            "entailment_score": entailment_score,
+            "contradiction_score": contradiction_score,
+            "is_contradiction": contradiction_score > 0.5,
         }
 
     def semantic_similarity(self, source: str, generated: str) -> Dict:
@@ -80,21 +76,17 @@ class HallucinationEvaluator:
         cos_sim = util.cos_sim(source_embedding, gen_embedding).item()
 
         # Compute ROUGE scores
-        rouge_scores = self.rouge.compute(
-            predictions=[generated],
-            references=[source]
-        )
+        rouge_scores = self.rouge.compute(predictions=[generated], references=[source])
 
         # Compute BLEURT score
         bleurt_score = self.bleurt.compute(
-            predictions=[generated],
-            references=[source]
-        )['scores'][0]
+            predictions=[generated], references=[source]
+        )["scores"][0]
 
         return {
-            'cosine_similarity': cos_sim,
-            'rougeL': rouge_scores['rougeL'].mid.fmeasure,
-            'bleurt_score': bleurt_score
+            "cosine_similarity": cos_sim,
+            "rougeL": rouge_scores["rougeL"].mid.fmeasure,
+            "bleurt_score": bleurt_score,
         }
 
     def factual_consistency(self, source: str, generated: str) -> Dict:
@@ -111,20 +103,20 @@ class HallucinationEvaluator:
         # Extract claims from generated text
         generated_claims = self._extract_claims(generated)
         if not generated_claims:
-            return {'fact_score': 1.0, 'num_claims': 0}
+            return {"fact_score": 1.0, "num_claims": 0}
 
         # Verify each claim against source
         verified = []
         for claim in generated_claims:
             result = self.detect_contradictions(source, claim)
-            verified.append(result['entailment_score'] > 0.5)
+            verified.append(result["entailment_score"] > 0.5)
 
         fact_score = np.mean(verified)
 
         return {
-            'fact_score': fact_score,
-            'num_claims': len(generated_claims),
-            'verified_claims_ratio': fact_score
+            "fact_score": fact_score,
+            "num_claims": len(generated_claims),
+            "verified_claims_ratio": fact_score,
         }
 
     def _extract_claims(self, text: str) -> List[str]:
@@ -142,7 +134,7 @@ class HallucinationEvaluator:
 
         # Extract simple declarative sentences
         for sent in doc.sents:
-            if any(tok.dep_ == 'ROOT' for tok in sent):
+            if any(tok.dep_ == "ROOT" for tok in sent):
                 claims.append(sent.text)
 
         return claims

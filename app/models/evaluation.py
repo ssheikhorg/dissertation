@@ -20,28 +20,31 @@ class ModelEvaluator:
         results = []
 
         for prompt in prompts:
-            response = model_client.generate(prompt['clean_prompt'])
+            response = model_client.generate(prompt["clean_prompt"])
 
             metrics = self.metric_calc.calculate_all(
-                [prompt['clean_reference']],
-                [response]
+                [prompt["clean_reference"]], [response]
             )
 
             bias = self.bias_analyzer.analyze_responses([response])
             self_consistency = self.consistency_eval.self_consistency(response)
 
-            results.append({
-                'model': model_name,
-                'prompt': prompt['original_prompt'],
-                'response': response,
-                **metrics,
-                **bias,
-                **self_consistency
-            })
+            results.append(
+                {
+                    "model": model_name,
+                    "prompt": prompt["original_prompt"],
+                    "response": response,
+                    **metrics,
+                    **bias,
+                    **self_consistency,
+                }
+            )
 
         return pd.DataFrame(results)
 
-    def compare_models(self, model_names: List[str], prompts: List[Dict]) -> pd.DataFrame:
+    def compare_models(
+        self, model_names: List[str], prompts: List[Dict]
+    ) -> pd.DataFrame:
         all_results = []
         for model_name in model_names:
             results = self.evaluate_model(model_name, prompts)

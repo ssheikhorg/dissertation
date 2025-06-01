@@ -16,6 +16,7 @@ app.include_router(visualizations.router)
 # Templates
 templates = Jinja2Templates(directory="app/templates")
 
+
 @app.get("/")
 async def root():
     return templates.TemplateResponse("index.html", {"request": {}})
