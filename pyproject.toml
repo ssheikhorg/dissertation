@@ -1,0 +1,24 @@
+[project]
+    name = "dissertation-project-fastapi"
+    authors = [
+        { name = "Shahin Shapon", email = "ssheikhorg@hotmail.com" },
+    ]
+    version = "0.1.0"
+    description = "MSc dissertation project for implementing a FastAPI application with Uvicorn"
+    readme = "README.md"
+    requires-python = ">=3.12"
+    dependencies = [
+    "datasets>=4.0.0",
+    "fastapi[standard]>=0.116.1",
+    "huggingface-hub>=0.34.3",
+    "pandas>=2.3.1",
+    "rouge-score>=0.1.2",
+    "sentence-transformers>=5.1.0",
+    "spacy>=3.8.7",
+    "transformers>=4.55.0",
+]
+
+[dependency-groups]
+dev = [
+    "uvicorn>=0.35.0",
+]
