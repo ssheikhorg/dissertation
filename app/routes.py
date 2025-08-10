@@ -2,6 +2,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 
+from app.api_models import ModelClient
+from app.config import settings
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -14,6 +16,7 @@ async def evaluate_medical_model(
     n_samples: int = 10,
     mitigation: str = None,  # "rag", "lora", "ensemble"
 ):
+    n_samples = n_samples or settings.datasets.max_samples
     # Load medical prompts
     prompts = load_test_prompts(dataset, n_samples)
 

@@ -1,10 +1,17 @@
+import spacy
 from datasets import load_dataset
-from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
+from peft import LoraConfig, get_peft_model
+from rouge_score.rouge_scorer import RougeScorer
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer
 from typing import List, Dict
 import numpy as np
 import pandas as pd
+import evaluate
 
 from sentence_transformers import SentenceTransformer, util
+
+from app.api_models import ModelClient
+from app.config import settings
 
 
 class BiasAnalyzer:
@@ -151,31 +158,13 @@ class ConsistencyEvaluator:
 
 class ModelEvaluator:
     def __init__(self):
-        """
-        Initialize evaluation components.
-
-        Args:
-            config: Evaluation configuration dictionary
-        """
         self.metric_calc = MetricCalculator()
         self.bias_analyzer = BiasAnalyzer()
         self.hallucination_eval = HallucinationEvaluator()
         self.consistency_eval = ConsistencyEvaluator()
 
-    def evaluate_model(
-        self, model_name: str, prompts: List[Dict], model_client
-    ) -> pd.DataFrame:
-        """
-        Comprehensive model evaluation.
-
-        Args:
-            model_name: Name of model being evaluated
-            prompts: List of prompt dictionaries
-            model_client: Model client instance
-
-        Returns:
-            DataFrame with evaluation results
-        """
+    def evaluate_model(self, model_name: str, prompts: List[Dict]) -> pd.DataFrame:
+        model_client = ModelClient.get_client(model_name)
         results = []
 
         for prompt in prompts:
@@ -228,38 +217,33 @@ class ModelEvaluator:
 
 class HallucinationEvaluator:
     def __init__(self):
-        self.config = config
         self.nlp = spacy.load("en_core_web_sm")
-
-        # Load models for different detection methods
         self.nli_model = pipeline(
             "text-classification",
-            model="roberta-large-mnli",
-            device=0 if config.get("use_gpu", True) else -1,
+            model=settings.evaluation.entailment_model,
+            device=0 if settings.evaluation.use_gpu else -1,
         )
-        # Add medical-specific models
         self.medical_nli = pipeline(
             "text-classification",
-            model="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext",
-            device=0 if config.get("use_gpu", True) else -1,
+            model=settings.evaluation.medical_nli_model,
+            device=0 if settings.evaluation.use_gpu else -1,
         )
-        # Load medical knowledge bases
-        self.umls = UMLSKnowledgeBase(config.get("umls_api_key"))
-        self.mesh = MeSHKnowledgeBase()
-
-        # Medical entity recognition
-        self.ner = pipeline("ner", model="d4data/biomedical-ner-all")
-
+        self.ner = pipeline(
+            "ner",
+            model=settings.evaluation.ner_model,
+            device=0 if settings.evaluation.use_gpu else -1,
+        )
         self.similarity_model = SentenceTransformer(
-            "all-mpnet-base-v2", device="cuda" if config.get("use_gpu", True) else "cpu"
+            settings.evaluation.similarity_model,
+            device="cuda" if settings.evaluation.use_gpu else "cpu",
         )
 
         self.entailment_id = 0  # MNLI entailment label index
         self.contradiction_id = 2  # MNLI contradiction label index
 
         # Load metrics
-        self.rouge = load_metric("rouge")
-        self.bleurt = load_metric("bleurt", "bleurt-large-512")
+        self.rouge = evaluate.load("rouge")
+        self.bleurt = evaluate.load("bleurt", "bleurt-large-512")
 
     def detect_contradictions(self, source: str, generated: str) -> Dict:
         """
@@ -411,8 +395,8 @@ class MetricCalculator:
     def __init__(self):
         self.scorer = RougeScorer(["rougeL"], use_stemmer=True)
         # Medical-specific metrics
-        self.medical_bleu = load_metric("bleu")
-        self.medical_bertscore = load_metric("bertscore")
+        self.medical_bleu = evaluate.load("bleu")
+        self.medical_bertscore = evaluate.load("bertscore")
 
     def calculate_all(self, references: List[str], predictions: List[str]) -> Dict:
         rouge_scores = [
