@@ -4,6 +4,7 @@ from starlette.templating import Jinja2Templates
 
 from app.api_models import ModelClient
 from app.config import settings
+from app.retrievers import load_test_prompts, MedicalModelEvaluator, load_baseline
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")

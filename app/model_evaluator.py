@@ -1,8 +1,13 @@
 import spacy
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model
-from rouge_score.rouge_scorer import RougeScorer
-from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer
+from transformers import (
+    pipeline,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    TrainingArguments,
+    Trainer,
+)
 from typing import List, Dict
 import numpy as np
 import pandas as pd
@@ -393,38 +398,46 @@ class HallucinationEvaluator:
 
 class MetricCalculator:
     def __init__(self):
-        self.scorer = RougeScorer(["rougeL"], use_stemmer=True)
-        # Medical-specific metrics
-        self.medical_bleu = evaluate.load("bleu")
-        self.medical_bertscore = evaluate.load("bertscore")
+        """Initialize all metrics with error handling"""
+        try:
+            self.rouge = evaluate.load("rouge")
+            self.bleu = evaluate.load("bleu")
+            self.bertscore = evaluate.load("bertscore")
+        except Exception as e:
+            raise ImportError(
+                "Metric loading failed. Ensure you've installed all required packages:\n"
+                "pip install evaluate sacrebleu bert-score rouge-score nltk\n"
+                f"Original error: {str(e)}"
+            )
 
     def calculate_all(self, references: List[str], predictions: List[str]) -> Dict:
-        rouge_scores = [
-            self.scorer.score(ref, pred)["rougeL"].fmeasure
-            for ref, pred in zip(references, predictions)
-        ]
+        """Calculate all metrics between references and predictions"""
+        # ROUGE (handles multiple references automatically)
+        rouge_results = self.rouge.compute(
+            predictions=predictions, references=references, use_stemmer=True
+        )
 
-        exact_matches = [
-            float(ref.strip() == pred.strip())
-            for ref, pred in zip(references, predictions)
-        ]
+        # BLEU (requires specific formatting)
+        bleu_results = self.bleu.compute(
+            predictions=predictions,
+            references=[
+                [ref] for ref in references
+            ],  # List of references per prediction
+        )
+
+        # BERTScore (computes similarity)
+        bertscore_results = self.bertscore.compute(
+            predictions=predictions,
+            references=references,
+            lang="en",
+            model_type="microsoft/deberta-xlarge-mnli",  # Best for medical text
+        )
 
         return {
-            "rougeL": np.mean(rouge_scores),
-            "exact_match": np.mean(exact_matches),
-            "std_dev": np.std(rouge_scores),
-        }
-
-    def calculate_medical_metrics(
-        self, references: List[str], predictions: List[str]
-    ) -> Dict:
-        return {
-            "medical_bleu": self.medical_bleu.compute(
-                predictions=predictions, references=[[ref] for ref in references]
-            )["bleu"],
-            "medical_bertscore": self.medical_bertscore.compute(
-                predictions=predictions, references=references, lang="en"
-            )["f1"][0],
+            "rougeL": rouge_results["rougeL"].mid.fmeasure,  # Get F1 score
+            "bleu": bleu_results["bleu"],
+            "bertscore_f1": np.mean(bertscore_results["f1"]),
+            "exact_match": self._calculate_exact_match(references, predictions),
         }
 
 

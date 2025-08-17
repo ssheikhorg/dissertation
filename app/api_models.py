@@ -8,6 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 from app.config import settings
+from app.models import ModelClient
 from app.retrievers import PubMedRetriever
 
 
@@ -37,45 +38,6 @@ class HuggingFaceModel:
             ),
         )
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-
-class ModelClient:
-    """Base class for all API model clients"""
-    _registry = {}  # Class-level registry of model clients
-
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-        self.config = settings.models[model_name]
-
-    @classmethod
-    def register_client(cls, name: str):
-        """Decorator to register model client classes"""
-
-        def wrapper(client_class):
-            cls._registry[name] = client_class
-            return client_class
-
-        return wrapper
-
-    @classmethod
-    def get_client(cls, model_name: str, mitigation: str = None):
-        """Factory method to get the appropriate client"""
-        if model_name not in cls._registry:
-            raise ValueError(f"No client registered for model: {model_name}")
-
-        client = cls._registry[model_name](model_name)
-
-        if mitigation == "rag":
-            if not hasattr(client, "retriever"):
-                client.retriever = PubMedRetriever()
-        elif mitigation == "lora":
-            # Initialize LoRA adapter if needed
-            pass
-
-        return client
-
-    def generate(self, prompt: str, **kwargs) -> str:
-        raise NotImplementedError
 
 
 @ModelClient.register_client("xai")
