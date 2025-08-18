@@ -1,25 +1,31 @@
-import openai
-from anthropic import Anthropic
-import google.generativeai as genai
-from typing import Dict, Any
-import httpx
+from typing import Any
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import google.generativeai as genai
+import httpx
+import openai
 import torch
+from anthropic import Anthropic
+from lime.lime_text import LimeTextExplainer
+from pydantic import BaseModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from app.config import settings
-from app.models import ModelClient
 from app.retrievers import PubMedRetriever
 
 
+class PubMedArticle(BaseModel):
+    pmid: str
+    title: str
+    abstract: str
+    authors: list[str]
+    publication_date: str
+    journal: str
+
+
 class HuggingFaceModel:
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.model_name = config["model_name"]
-        self.device = (
-            "cuda"
-            if torch.cuda.is_available() and settings.evaluation.use_gpu
-            else "cpu"
-        )
+        self.device = "cuda" if torch.cuda.is_available() and settings.evaluation.use_gpu else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
@@ -30,14 +36,59 @@ class HuggingFaceModel:
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
         outputs = self.model.generate(
             **inputs,
-            max_new_tokens=kwargs.get(
-                "max_tokens", settings.models[self.model_name].max_tokens
-            ),
-            temperature=kwargs.get(
-                "temperature", settings.models[self.model_name].temperature
-            ),
+            max_new_tokens=kwargs.get("max_tokens", settings.models[self.model_name].max_tokens),
+            temperature=kwargs.get("temperature", settings.models[self.model_name].temperature),
         )
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+
+class ModelClient:
+    """Base class for all API model clients"""
+
+    _registry = {
+        "gpt-4": OpenAIClient,
+        "claude-3-opus-20240229": AnthropicClient,
+        "gemini-pro": GeminiClient,
+        "grok-beta": xAIClient,
+        "llama-2-7b": HuggingFaceModel,
+        "mistral-7b": HuggingFaceModel,
+        "deepseek-7b": HuggingFaceModel,
+        "qwen-7b": HuggingFaceModel,
+    }
+
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        self.config = settings.models[model_name]
+
+    @classmethod
+    def register_client(cls, name: str):
+        """Decorator to register model client classes"""
+
+        def wrapper(client_class):
+            cls._registry[name] = client_class
+            return client_class
+
+        return wrapper
+
+    @classmethod
+    def get_client(cls, model_name: str, mitigation: str = None) -> "ModelClient":
+        """Factory method to get the appropriate client"""
+        if model_name not in cls._registry:
+            raise ValueError(f"No client registered for model: {model_name}")
+
+        client_class = cls._registry[model_name]
+        client = client_class(model_name)
+
+        if mitigation == "rag":
+            if not hasattr(client, "retriever"):
+                client.retriever = PubMedRetriever()
+        elif mitigation == "lora":
+            pass
+
+        return client
+
+    def generate(self, prompt: str, **kwargs) -> str:
+        raise NotImplementedError
 
 
 @ModelClient.register_client("xai")
@@ -80,7 +131,22 @@ class OpenAIClient(ModelClient):
             temperature=kwargs.get("temperature", 0.3),  # Lower temp for medical
             max_tokens=kwargs.get("max_tokens", 1000),
         )
-        return response.choices[0].message.content
+        explainer = LimeTextExplainer()
+        exp = explainer.explain_instance(
+            prompt,
+            lambda x: [
+                self.client.chat.completions.create(
+                    model=kwargs.get("model", "gpt-4"),
+                    messages=[{"role": "user", "content": p}],
+                    temperature=0,
+                )
+                .choices[0]
+                .message.content
+                for p in x
+            ],
+            num_features=10,
+        )
+        return {"response": response, "lime_explanation": exp.as_list()}
 
 
 @ModelClient.register_client("anthropic")

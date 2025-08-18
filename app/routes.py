@@ -2,9 +2,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 
-from app.api_models import ModelClient
+from app.api_clients import ModelClient
 from app.config import settings
-from app.retrievers import load_test_prompts, MedicalModelEvaluator, load_baseline
+from app.retrievers import (
+    MedicalModelEvaluator,
+    compare_models,
+    load_baseline,
+    load_test_prompts,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -30,9 +35,7 @@ async def evaluate_medical_model(
 
     # Calculate hallucination reduction
     baseline = load_baseline(model_name, dataset)
-    reduction = (
-        baseline["hallucination_rate"] - results["hallucination_rate"]
-    ) / baseline["hallucination_rate"]
+    reduction = (baseline["hallucination_rate"] - results["hallucination_rate"]) / baseline["hallucination_rate"]
 
     return {
         "results": results,
@@ -48,10 +51,13 @@ async def evaluation_page(request: Request):
 
 @router.post("/api/compare")
 async def api_compare_models(
-    model_names: list[str], dataset: str = "truthful_qa", n_samples: int = 5
+    model_names: list[str],
+    dataset: str = "pubmed_qa",
+    n_samples: int = 5,
+    mitigation: str = None,
 ):
     prompts = load_test_prompts(dataset, n_samples)
-    results = compare_models(model_names, prompts)
+    results = compare_models(model_names, prompts, mitigation=mitigation)
     return results
 
 

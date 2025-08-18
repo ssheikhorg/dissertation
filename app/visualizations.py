@@ -1,8 +1,8 @@
+
 import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-from typing import List, Dict, Optional
 import numpy as np
+import pandas as pd
+import seaborn as sns
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -16,10 +16,9 @@ def create_grouped_barplot(
     y_label: str = "Score",
     palette: str = "muted",
     figsize: tuple = (12, 6),
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
 ) -> None:
-    """
-    Creates a grouped bar plot for comparing models across different metrics or datasets.
+    """Creates a grouped bar plot for comparing models across different metrics or datasets.
 
     Args:
         data: DataFrame containing evaluation results
@@ -71,13 +70,12 @@ def create_grouped_barplot(
 
 def metric_comparison_bars(
     results_df: pd.DataFrame,
-    metrics: List[str],
+    metrics: list[str],
     model_col: str = "model",
     title: str = "Model Performance Metrics Comparison",
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
 ) -> None:
-    """
-    Creates a bar plot comparing multiple metrics across models.
+    """Creates a bar plot comparing multiple metrics across models.
 
     Args:
         results_df: DataFrame containing evaluation results
@@ -87,9 +85,7 @@ def metric_comparison_bars(
         save_path: Optional path to save the figure
     """
     # Melt data for seaborn
-    melted_data = results_df.melt(
-        id_vars=[model_col], value_vars=metrics, var_name="metric", value_name="score"
-    )
+    melted_data = results_df.melt(id_vars=[model_col], value_vars=metrics, var_name="metric", value_name="score")
 
     plt.figure(figsize=(14, 7))
 
@@ -128,13 +124,12 @@ def metric_comparison_bars(
 
 def stacked_bias_bars(
     results_df: pd.DataFrame,
-    bias_types: List[str],
+    bias_types: list[str],
     model_col: str = "model",
     title: str = "Bias Composition Across Models",
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
 ) -> None:
-    """
-    Creates a stacked bar plot showing bias composition across models.
+    """Creates a stacked bar plot showing bias composition across models.
 
     Args:
         results_df: DataFrame containing bias evaluation results
@@ -148,9 +143,7 @@ def stacked_bias_bars(
     bias_proportions = bias_totals.div(bias_totals.sum(axis=1), axis=0)
 
     # Plot stacked bars
-    ax = bias_proportions.plot(
-        kind="bar", stacked=True, figsize=(12, 6), colormap="RdYlGn_r", title=title
-    )
+    ax = bias_proportions.plot(kind="bar", stacked=True, figsize=(12, 6), colormap="RdYlGn_r", title=title)
 
     plt.title(title, pad=20)
     plt.xlabel("Model")
@@ -193,9 +186,7 @@ bias_breakdown = pd.DataFrame(
     }
 )
 
-stacked_bias_bars(
-    results_df=bias_breakdown, bias_types=["Gender", "Racial", "Political"]
-)
+stacked_bias_bars(results_df=bias_breakdown, bias_types=["Gender", "Racial", "Political"])
 
 
 def create_heatmap(
@@ -208,10 +199,9 @@ def create_heatmap(
     figsize: tuple = (12, 8),
     annot: bool = True,
     normalize: bool = False,
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
 ) -> None:
-    """
-    Creates a heatmap from evaluation results.
+    """Creates a heatmap from evaluation results.
 
     Args:
         data: DataFrame containing evaluation results
@@ -228,14 +218,10 @@ def create_heatmap(
     plt.figure(figsize=figsize)
 
     # Pivot data for heatmap format
-    heatmap_data = data.pivot_table(
-        index=y_axis, columns=x_axis, values=value_column, aggfunc=np.mean
-    )
+    heatmap_data = data.pivot_table(index=y_axis, columns=x_axis, values=value_column, aggfunc=np.mean)
 
     if normalize:
-        heatmap_data = (heatmap_data - heatmap_data.min()) / (
-            heatmap_data.max() - heatmap_data.min()
-        )
+        heatmap_data = (heatmap_data - heatmap_data.min()) / (heatmap_data.max() - heatmap_data.min())
 
     # Create heatmap
     ax = sns.heatmap(
@@ -258,12 +244,11 @@ def create_heatmap(
 
 def bias_heatmap(
     results_df: pd.DataFrame,
-    model_names: List[str],
-    bias_types: List[str],
-    save_path: Optional[str] = None,
+    model_names: list[str],
+    bias_types: list[str],
+    save_path: str | None = None,
 ) -> None:
-    """
-    Specialized heatmap for visualizing bias scores across models and bias categories.
+    """Specialized heatmap for visualizing bias scores across models and bias categories.
 
     Args:
         results_df: DataFrame containing bias evaluation results
@@ -301,13 +286,11 @@ def bias_heatmap(
     plt.show()
 
 
-def create_radar_plot(results: Dict[str, Dict], metrics: List[str]) -> None:
+def create_radar_plot(results: dict[str, dict], metrics: list[str]) -> None:
     plot_data = []
     for model, scores in results.items():
         for metric in metrics:
-            plot_data.append(
-                {"Model": model, "Metric": metric, "Score": scores[metric]}
-            )
+            plot_data.append({"Model": model, "Metric": metric, "Score": scores[metric]})
 
     df = pd.DataFrame(plot_data)
     fig = px.line_polar(
@@ -326,15 +309,13 @@ class ReportGenerator:
     def __init__(self, template_dir="templates"):
         self.env = Environment(loader=FileSystemLoader(template_dir))
 
-    def generate_html_report(self, results: Dict, output_path: str) -> None:
+    def generate_html_report(self, results: dict, output_path: str) -> None:
         template = self.env.get_template("report_template.html")
 
         # Convert results to pandas for easy display
         df = pd.DataFrame.from_dict(results, orient="index")
 
-        html_content = template.render(
-            models_results=df.to_html(classes="data"), metrics=list(df.columns)
-        )
+        html_content = template.render(models_results=df.to_html(classes="data"), metrics=list(df.columns))
 
         with open(output_path, "w") as f:
             f.write(html_content)
@@ -366,19 +347,15 @@ bias_breakdown = pd.DataFrame(
     }
 )
 
-stacked_bias_bars(
-    results_df=bias_breakdown, bias_types=["Gender", "Racial", "Political"]
-)
+stacked_bias_bars(results_df=bias_breakdown, bias_types=["Gender", "Racial", "Political"])
 
 
-def plot_hallucination_reduction(results: Dict, save_path: str = None):
+def plot_hallucination_reduction(results: dict, save_path: str = None):
     """Plot before/after hallucination rates for each mitigation strategy"""
     df = pd.DataFrame.from_dict(results, orient="index")
 
     plt.figure(figsize=(10, 6))
-    ax = sns.barplot(
-        data=df.reset_index(), x="index", y="hallucination_rate", hue="mitigation"
-    )
+    ax = sns.barplot(data=df.reset_index(), x="index", y="hallucination_rate", hue="mitigation")
 
     plt.title("Hallucination Rate Reduction by Mitigation Strategy")
     plt.xlabel("Model")

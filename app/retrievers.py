@@ -1,19 +1,21 @@
+import json
+import os
+import time
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 
 import httpx
-from typing import List
-from app.config import settings
-import time
 import numpy as np
-
-from typing import Dict
 import pandas as pd
 from config import settings
-from .dataset_loader import DatasetLoader
-from .evaluations import ModelEvaluator
-import json
-import os
 
+from .dataset_loader import DatasetLoader
+from .model_evaluator import (
+    ConsistencyEvaluator,
+    HallucinationEvaluator,
+    MetricCalculator,
+    ModelEvaluator,
+)
 from .models import PubMedArticle
 
 # Initialize dataset loader
@@ -21,9 +23,8 @@ dataset_loader = DatasetLoader()
 model_evaluator = ModelEvaluator()
 
 
-def compare_models(model_names: List[str], prompts: List[Dict]) -> Dict:
-    """
-    Compare multiple models on the same set of prompts
+def compare_models(model_names: list[str], prompts: list[dict]) -> dict:
+    """Compare multiple models on the same set of prompts
 
     Args:
         model_names: List of model names to compare
@@ -45,12 +46,9 @@ def compare_models(model_names: List[str], prompts: List[Dict]) -> Dict:
     # Evaluate each model (parallelized for efficiency)
     with ThreadPoolExecutor() as executor:
         futures = {
-            model_name: executor.submit(evaluate_single_model, model_name, prompts)
-            for model_name in model_names
+            model_name: executor.submit(evaluate_single_model, model_name, prompts) for model_name in model_names
         }
-        all_results = {
-            model_name: future.result() for model_name, future in futures.items()
-        }
+        all_results = {model_name: future.result() for model_name, future in futures.items()}
 
     # Generate comparative analysis
     comparison = generate_comparison_metrics(all_results)
@@ -63,7 +61,7 @@ def compare_models(model_names: List[str], prompts: List[Dict]) -> Dict:
     }
 
 
-def evaluate_single_model(model_name: str, prompts: List[Dict]) -> Dict:
+def evaluate_single_model(model_name: str, prompts: list[dict]) -> dict:
     """Evaluate a single model on the given prompts"""
     try:
         # Get per-prompt results
@@ -79,7 +77,7 @@ def evaluate_single_model(model_name: str, prompts: List[Dict]) -> Dict:
         return {"error": str(e), "metrics": None, "sample_responses": None}
 
 
-def calculate_aggregate_metrics(results_df: pd.DataFrame) -> Dict:
+def calculate_aggregate_metrics(results_df: pd.DataFrame) -> dict:
     """Calculate aggregate metrics from individual results"""
     if results_df.empty:
         return {}
@@ -95,7 +93,7 @@ def calculate_aggregate_metrics(results_df: pd.DataFrame) -> Dict:
     }
 
 
-def get_sample_responses(results_df: pd.DataFrame, n: int = 3) -> List[Dict]:
+def get_sample_responses(results_df: pd.DataFrame, n: int = 3) -> list[dict]:
     """Get sample responses with reference comparisons"""
     samples = []
     for _, row in results_df.sample(min(n, len(results_df))).iterrows():
@@ -111,7 +109,7 @@ def get_sample_responses(results_df: pd.DataFrame, n: int = 3) -> List[Dict]:
     return samples
 
 
-def analyze_errors(results_df: pd.DataFrame) -> Dict:
+def analyze_errors(results_df: pd.DataFrame) -> dict:
     """Analyze common error patterns"""
     if results_df.empty:
         return {}
@@ -120,18 +118,17 @@ def analyze_errors(results_df: pd.DataFrame) -> Dict:
     hallucinations = results_df[results_df["fact_score"] < 0.5]
 
     return {
-        "hallucination_examples": get_sample_responses(hallucinations, 2)
-        if not hallucinations.empty
-        else [],
+        "hallucination_examples": get_sample_responses(hallucinations, 2) if not hallucinations.empty else [],
         "common_error_patterns": find_common_patterns(hallucinations["response"]),
         "hallucination_rate": len(hallucinations) / len(results_df),
     }
 
 
-def find_common_patterns(responses: pd.Series) -> List[str]:
+def find_common_patterns(responses: pd.Series) -> list[str]:
     """Identify common patterns in erroneous responses"""
     # This is a placeholder - implement proper NLP analysis
     from collections import Counter
+
     from nltk import ngrams
 
     # Simple n-gram analysis
@@ -143,16 +140,14 @@ def find_common_patterns(responses: pd.Series) -> List[str]:
     return [" ".join(gram) for gram, count in Counter(all_ngrams).most_common(3)]
 
 
-def generate_comparison_metrics(all_results: Dict[str, Dict]) -> Dict:
+def generate_comparison_metrics(all_results: dict[str, dict]) -> dict:
     """Generate comparative metrics between models"""
     comparison = {}
     metrics = ["accuracy", "hallucination_rate", "consistency", "rougeL"]
 
     for metric in metrics:
         values = {
-            model: results["metrics"][metric]
-            for model, results in all_results.items()
-            if results.get("metrics")
+            model: results["metrics"][metric] for model, results in all_results.items() if results.get("metrics")
         }
 
         if values:
@@ -167,7 +162,7 @@ def generate_comparison_metrics(all_results: Dict[str, Dict]) -> Dict:
     return comparison
 
 
-def get_dataset_stats(prompts: List[Dict]) -> Dict:
+def get_dataset_stats(prompts: list[dict]) -> dict:
     """Calculate basic statistics about the evaluation dataset"""
     ref_lengths = [len(p["original_reference"]) for p in prompts]
     prompt_lengths = [len(p["original_prompt"]) for p in prompts]
@@ -187,9 +182,8 @@ def get_dataset_stats(prompts: List[Dict]) -> Dict:
     }
 
 
-def load_test_prompts(dataset_name: str, n_samples: int) -> List[Dict]:
-    """
-    Load test prompts from the specified dataset
+def load_test_prompts(dataset_name: str, n_samples: int) -> list[dict]:
+    """Load test prompts from the specified dataset
 
     Args:
         dataset_name: Name of the dataset to load
@@ -205,9 +199,8 @@ def load_test_prompts(dataset_name: str, n_samples: int) -> List[Dict]:
         raise ValueError(f"Failed to load prompts from {dataset_name}: {str(e)}")
 
 
-def load_baseline(model_name: str, dataset_name: str) -> Dict:
-    """
-    Load baseline hallucination rates for a model/dataset combination
+def load_baseline(model_name: str, dataset_name: str) -> dict:
+    """Load baseline hallucination rates for a model/dataset combination
 
     Args:
         model_name: Name of the model
@@ -223,7 +216,7 @@ def load_baseline(model_name: str, dataset_name: str) -> Dict:
 
     try:
         if os.path.exists(baseline_file):
-            with open(baseline_file, "r") as f:
+            with open(baseline_file) as f:
                 return json.load(f)
 
         # Default baseline if no file exists
@@ -233,29 +226,19 @@ def load_baseline(model_name: str, dataset_name: str) -> Dict:
             "fact_score": 0.75,
         }
     except Exception as e:
-        raise ValueError(
-            f"Failed to load baseline for {model_name}/{dataset_name}: {str(e)}"
-        )
+        raise ValueError(f"Failed to load baseline for {model_name}/{dataset_name}: {str(e)}")
 
 
 class MedicalModelEvaluator:
     def __init__(self):
+        """Initialize medical-specific evaluator with healthcare-focused metrics
         """
-        Initialize medical-specific evaluator with healthcare-focused metrics
-        """
-        from .evaluations import (
-            HallucinationEvaluator,
-            MetricCalculator,
-            ConsistencyEvaluator,
-        )
-
         self.hallucination_eval = HallucinationEvaluator()
         self.metric_calc = MetricCalculator()
         self.consistency_eval = ConsistencyEvaluator(settings.evaluation)
 
-    def evaluate(self, model_client, prompts: List[Dict]) -> Dict:
-        """
-        Evaluate model performance on medical prompts
+    def evaluate(self, model_client, prompts: list[dict]) -> dict:
+        """Evaluate model performance on medical prompts
 
         Args:
             model_client: Initialized model client
@@ -282,14 +265,10 @@ class MedicalModelEvaluator:
             response = model_client.generate(prompt["clean_prompt"])
 
             # Basic text metrics
-            metrics = self.metric_calc.calculate_all(
-                [prompt["clean_reference"]], [response]
-            )
+            metrics = self.metric_calc.calculate_all([prompt["clean_reference"]], [response])
 
             # Medical-specific evaluations
-            hallucination = self.hallucination_eval.factual_consistency(
-                prompt["clean_reference"], response
-            )
+            hallucination = self.hallucination_eval.factual_consistency(prompt["clean_reference"], response)
 
             fabrication = self.hallucination_eval.detect_medical_fabrications(response)
             guidelines = self.hallucination_eval.check_clinical_guidelines(response)
@@ -317,9 +296,7 @@ class MedicalModelEvaluator:
                     "toxicity_score": df.get("toxicity_score", 0).mean(),
                     "fabrication_score": df.get("fabrication_score", 0).mean(),
                     "guideline_violations": df.get("guideline_violations", 0).mean(),
-                    "sample_responses": df["response"]
-                    .iloc[:3]
-                    .tolist(),  # Include sample responses
+                    "sample_responses": df["response"].iloc[:3].tolist(),  # Include sample responses
                 }
             )
 
@@ -332,9 +309,7 @@ class PubMedRetriever:
         self.api_key = api_key or settings.pubmed_api_key
         self.cache = {}  # Simple cache to avoid duplicate requests
         self.last_request_time = 0
-        self.min_request_interval = (
-            0.34  # Respect PubMed's rate limit (3 requests/second)
-        )
+        self.min_request_interval = 0.34  # Respect PubMed's rate limit (3 requests/second)
 
     def _rate_limit(self):
         """Ensure we respect PubMed's rate limits"""
@@ -343,7 +318,7 @@ class PubMedRetriever:
             time.sleep(self.min_request_interval - elapsed)
         self.last_request_time = time.time()
 
-    async def search(self, query: str, max_results: int = 3) -> List[PubMedArticle]:
+    async def search(self, query: str, max_results: int = 3) -> list[PubMedArticle]:
         """Search PubMed for relevant articles"""
         cache_key = f"search:{query}:{max_results}"
         if cache_key in self.cache:
@@ -374,7 +349,7 @@ class PubMedRetriever:
             self.cache[cache_key] = articles
             return articles
 
-    async def fetch_articles(self, pmid_list: List[str]) -> List[PubMedArticle]:
+    async def fetch_articles(self, pmid_list: list[str]) -> list[PubMedArticle]:
         """Fetch full article details by PMID"""
         cache_key = f"articles:{','.join(pmid_list)}"
         if cache_key in self.cache:
@@ -390,18 +365,30 @@ class PubMedRetriever:
             response = await client.get(fetch_url, params=params)
             response.raise_for_status()
 
-            # Parse XML response (simplified - in practice you'd use lxml or similar)
             articles = self._parse_pubmed_xml(response.text)
             self.cache[cache_key] = articles
             return articles
 
-    def _parse_pubmed_xml(self, xml_content: str) -> List[PubMedArticle]:
-        """Simplified XML parser for PubMed results"""
-        # In a real implementation, you'd use lxml or similar for proper parsing
-        # This is a simplified version that would need proper XML parsing
+    def _parse_pubmed_xml(self, xml_content: str) -> list[PubMedArticle]:
+        root = ET.fromstring(xml_content)
         articles = []
-        # Example parsing logic (would need proper XML parsing):
-        # Split by <PubmedArticle> tags and extract relevant fields
+        for article in root.findall(".//PubmedArticle"):
+            pmid = article.findtext(".//PMID")
+            title = article.findtext(".//ArticleTitle")
+            abstract = article.findtext(".//AbstractText")
+            authors = [a.text for a in article.findall(".//Author/LastName")]
+            journal = article.findtext(".//Journal/Title")
+            pub_date = article.findtext(".//PubDate/Year")
+            articles.append(
+                PubMedArticle(
+                    pmid=pmid,
+                    title=title,
+                    abstract=abstract,
+                    authors=authors,
+                    journal=journal,
+                    publication_date=pub_date,
+                )
+            )
         return articles
 
     async def retrieve(self, query: str, top_k: int = 3) -> str:

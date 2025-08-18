@@ -1,21 +1,22 @@
-from datasets import load_dataset
-import pandas as pd
 import re
 import string
-from typing import List, Dict, Any
-import yaml
 import time
+from typing import Any
+
+import pandas as pd
+import yaml
+from datasets import load_dataset
 
 from app.config import settings
 
 
-def load_model_configs(path: str = "config.yaml") -> Dict[str, Any]:
+def load_model_configs(path: str = "config.yaml") -> dict[str, Any]:
     with open(path) as f:
         config = yaml.safe_load(f)
     return config["models"]
 
 
-def batch_queries(queries: List[str], batch_size: int = 5) -> List[List[str]]:
+def batch_queries(queries: list[str], batch_size: int = 5) -> list[list[str]]:
     return [queries[i : i + batch_size] for i in range(0, len(queries), batch_size)]
 
 
@@ -48,17 +49,17 @@ class DatasetLoader:
                 "reference_col": "long_answer",
             },
             "med_qa": {
-                "path": "med_qa",
-                "config": "en",
+                "path": "bigbio/med_qa",  # Fixed
+                "config": "med_qa_en_source",  # From browse_page
                 "split": "test",
                 "prompt_col": "question",
                 "reference_col": "answer",
             },
             "mimic_cxr": {
-                "path": "mimic_cxr",
+                "path": "itsanmolgupta/mimic-cxr-dataset",
                 "split": "test",
-                "prompt_col": "findings",
-                "reference_col": "impression",
+                "prompt_col": "report",
+                "reference_col": "label",
             },
         }
 
@@ -70,7 +71,7 @@ class DatasetLoader:
         dataset = load_dataset(cfg["path"], cfg.get("config"))[cfg["split"]]
         return dataset.to_pandas()
 
-    def get_test_prompts(self, name: str, n_samples: int = 100) -> List[Dict]:
+    def get_test_prompts(self, name: str, n_samples: int = 100) -> list[dict]:
         df = self.load_dataset(name)
         samples = df.sample(min(n_samples, len(df)))
         return samples[
@@ -96,7 +97,7 @@ class TextPreprocessor:
         return re.sub(r"\s+", " ", text)
 
     @staticmethod
-    def preprocess_batch(records: List[Dict]) -> List[Dict]:
+    def preprocess_batch(records: list[dict]) -> list[dict]:
         return [
             {
                 "original_prompt": r["prompt"],

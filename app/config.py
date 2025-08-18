@@ -1,7 +1,7 @@
 # config.py
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
-from typing import Dict, Optional
 
 
 class ModelConfig(BaseSettings):
@@ -17,26 +17,24 @@ class EvaluationConfig(BaseSettings):
     use_gpu: bool = Field(default=True)
     similarity_model: str = Field(default="all-mpnet-base-v2")
     entailment_model: str = Field(default="roberta-large-mnli")
-    medical_nli_model: str = Field(
-        default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"
-    )
+    medical_nli_model: str = Field(default="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext")
     ner_model: str = Field(default="d4data/biomedical-ner-all")
-    umls_api_key: Optional[str] = None
+    umls_api_key: str | None = None
+    lora: dict = Field(default={"r": 8, "alpha": 16, "dropout": 0.05})
+    entropy_samples: int = Field(default=10)
 
 
 class DatasetConfig(BaseSettings):
     batch_size: int = Field(default=5)
-    rate_limits: Dict[str, float] = Field(
-        default={"openai": 0.5, "anthropic": 1.0, "google": 2.0}
-    )
+    rate_limits: dict[str, float] = Field(default={"openai": 0.5, "anthropic": 1.0, "google": 2.0})
     max_samples: int = Field(default=100)
 
 
 class Settings(BaseSettings):
-    models: Dict[str, ModelConfig]
+    models: dict[str, ModelConfig]
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     datasets: DatasetConfig = Field(default_factory=DatasetConfig)
-    pubmed_api_key: Optional[str] = None
+    pubmed_api_key: str | None = None
 
     class Config:
         env_file = ".env"

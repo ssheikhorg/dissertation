@@ -1,19 +1,20 @@
+
+import evaluate
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
 import spacy
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model
+from sentence_transformers import SentenceTransformer, util
+from sklearn.cluster import DBSCAN
 from transformers import (
-    pipeline,
     AutoModelForCausalLM,
     AutoTokenizer,
-    TrainingArguments,
     Trainer,
+    TrainingArguments,
+    pipeline,
 )
-from typing import List, Dict
-import numpy as np
-import pandas as pd
-import evaluate
-
-from sentence_transformers import SentenceTransformer, util
 
 from app.api_models import ModelClient
 from app.config import settings
@@ -21,11 +22,9 @@ from app.config import settings
 
 class BiasAnalyzer:
     def __init__(self):
-        self.classifier = pipeline(
-            "text-classification", model="unitary/unbiased-toxic-roberta"
-        )
+        self.classifier = pipeline("text-classification", model="unitary/unbiased-toxic-roberta")
 
-    def analyze_responses(self, responses: List[str]) -> Dict:
+    def analyze_responses(self, responses: list[str]) -> dict:
         results = self.classifier(responses)
         toxic_scores = [r["score"] if r["label"] == "toxic" else 0 for r in results]
         return {
@@ -36,9 +35,8 @@ class BiasAnalyzer:
 
 
 class ConsistencyEvaluator:
-    def __init__(self, config: Dict):
-        """
-        Initialize consistency evaluation tools.
+    def __init__(self, config: dict):
+        """Initialize consistency evaluation tools.
 
         Args:
             config: Evaluation configuration dictionary
@@ -54,9 +52,8 @@ class ConsistencyEvaluator:
             device=0 if config.get("use_gpu", True) else -1,
         )
 
-    def response_consistency(self, responses: List[str]) -> Dict:
-        """
-        Evaluate consistency across multiple responses to similar prompts.
+    def response_consistency(self, responses: list[str]) -> dict:
+        """Evaluate consistency across multiple responses to similar prompts.
 
         Args:
             responses: List of model responses to evaluate
@@ -81,9 +78,8 @@ class ConsistencyEvaluator:
             "max_similarity": np.max(upper_triangle).item(),
         }
 
-    def logical_consistency(self, responses: List[str]) -> Dict:
-        """
-        Evaluate logical consistency across responses using NLI.
+    def logical_consistency(self, responses: list[str]) -> dict:
+        """Evaluate logical consistency across responses using NLI.
 
         Args:
             responses: List of model responses to evaluate
@@ -98,9 +94,7 @@ class ConsistencyEvaluator:
         entailment_scores = []
         for i in range(len(responses)):
             for j in range(i + 1, len(responses)):
-                result = self.entailment_model(
-                    f"{responses[i]} [SEP] {responses[j]}", return_all_scores=True
-                )
+                result = self.entailment_model(f"{responses[i]} [SEP] {responses[j]}", return_all_scores=True)
                 # Score for entailment (label 0)
                 entailment_scores.append(result[0][0]["score"])
 
@@ -109,9 +103,8 @@ class ConsistencyEvaluator:
             "logical_variance": np.var(entailment_scores).item(),
         }
 
-    def self_consistency(self, response: str) -> Dict:
-        """
-        Evaluate self-consistency within a single response.
+    def self_consistency(self, response: str) -> dict:
+        """Evaluate self-consistency within a single response.
 
         Args:
             response: Model response to evaluate
@@ -130,25 +123,20 @@ class ConsistencyEvaluator:
 
         for i in range(len(claims)):
             for j in range(i + 1, len(claims)):
-                result = self.entailment_model(
-                    f"{claims[i]} [SEP] {claims[j]}", return_all_scores=True
-                )
+                result = self.entailment_model(f"{claims[i]} [SEP] {claims[j]}", return_all_scores=True)
                 # Considered consistent if not contradictory
                 if result[0][2]["score"] < 0.5:  # Contradiction score
                     consistent_pairs += 1
                 total_pairs += 1
 
         return {
-            "self_consistency": consistent_pairs / total_pairs
-            if total_pairs > 0
-            else 1.0,
+            "self_consistency": consistent_pairs / total_pairs if total_pairs > 0 else 1.0,
             "num_claims": len(claims),
             "checked_pairs": total_pairs,
         }
 
-    def _extract_claims(self, text: str) -> List[str]:
-        """
-        Extract discrete claims from text.
+    def _extract_claims(self, text: str) -> list[str]:
+        """Extract discrete claims from text.
 
         Args:
             text: Input text to analyze
@@ -162,62 +150,43 @@ class ConsistencyEvaluator:
 
 
 class ModelEvaluator:
-    def __init__(self):
+    def __init__(self, config: dict = None):
+        self.config = config or {}
         self.metric_calc = MetricCalculator()
         self.bias_analyzer = BiasAnalyzer()
-        self.hallucination_eval = HallucinationEvaluator()
-        self.consistency_eval = ConsistencyEvaluator()
+        self.consistency_eval = ConsistencyEvaluator(self.config)
 
-    def evaluate_model(self, model_name: str, prompts: List[Dict]) -> pd.DataFrame:
+    def evaluate_model(self, model_name: str, prompts: list[dict], mitigation: str = None) -> pd.DataFrame:
         model_client = ModelClient.get_client(model_name)
         results = []
 
         for prompt in prompts:
-            # Get model response
             response = model_client.generate(prompt["clean_prompt"])
 
-            # Basic metrics
-            metrics = self.metric_calc.calculate_all(
-                [prompt["clean_reference"]], [response]
-            )
+            metrics = self.metric_calc.calculate_all([prompt["clean_reference"]], [response])
 
-            # Bias analysis
             bias = self.bias_analyzer.analyze_responses([response])
-
-            # Hallucination detection
-            hallucination = self.hallucination_eval.factual_consistency(
-                prompt["clean_reference"], response
-            )
-
-            # Consistency evaluation (requires multiple responses)
-            consistency = {"response_consistency": None}
-            if "variations" in prompt:  # If we have multiple versions of the prompt
-                variations_responses = [
-                    model_client.generate(v) for v in prompt["variations"]
-                ]
-                consistency = self.consistency_eval.response_consistency(
-                    [response] + variations_responses
-                )
-
-            # Self-consistency
             self_consistency = self.consistency_eval.self_consistency(response)
 
             results.append(
                 {
                     "model": model_name,
-                    "prompt_id": prompt.get("id", hash(prompt["original_prompt"])),
                     "prompt": prompt["original_prompt"],
-                    "reference": prompt["original_reference"],
                     "response": response,
                     **metrics,
                     **bias,
-                    **hallucination,
-                    **consistency,
                     **self_consistency,
                 }
             )
 
         return pd.DataFrame(results)
+
+    def compare_models(self, model_names: list[str], prompts: list[dict]) -> pd.DataFrame:
+        all_results = []
+        for model_name in model_names:
+            results = self.evaluate_model(model_name, prompts)
+            all_results.append(results)
+        return pd.concat(all_results)
 
 
 class HallucinationEvaluator:
@@ -250,9 +219,8 @@ class HallucinationEvaluator:
         self.rouge = evaluate.load("rouge")
         self.bleurt = evaluate.load("bleurt", "bleurt-large-512")
 
-    def detect_contradictions(self, source: str, generated: str) -> Dict:
-        """
-        Detect contradictions between source and generated text using NLI.
+    def detect_contradictions(self, source: str, generated: str) -> dict:
+        """Detect contradictions between source and generated text using NLI.
 
         Args:
             source: Original source text
@@ -272,9 +240,8 @@ class HallucinationEvaluator:
             "is_contradiction": contradiction_score > 0.5,
         }
 
-    def semantic_similarity(self, source: str, generated: str) -> Dict:
-        """
-        Compute semantic similarity between source and generated text.
+    def semantic_similarity(self, source: str, generated: str) -> dict:
+        """Compute semantic similarity between source and generated text.
 
         Args:
             source: Original source text
@@ -294,9 +261,7 @@ class HallucinationEvaluator:
         rouge_scores = self.rouge.compute(predictions=[generated], references=[source])
 
         # Compute BLEURT score
-        bleurt_score = self.bleurt.compute(
-            predictions=[generated], references=[source]
-        )["scores"][0]
+        bleurt_score = self.bleurt.compute(predictions=[generated], references=[source])["scores"][0]
 
         return {
             "cosine_similarity": cos_sim,
@@ -304,9 +269,8 @@ class HallucinationEvaluator:
             "bleurt_score": bleurt_score,
         }
 
-    def factual_consistency(self, source: str, generated: str) -> Dict:
-        """
-        Comprehensive factual consistency evaluation.
+    def factual_consistency(self, source: str, generated: str) -> dict:
+        """Comprehensive factual consistency evaluation.
 
         Args:
             source: Original source text
@@ -334,9 +298,8 @@ class HallucinationEvaluator:
             "verified_claims_ratio": fact_score,
         }
 
-    def _extract_claims(self, text: str) -> List[str]:
-        """
-        Extract factual claims from text using NLP techniques.
+    def _extract_claims(self, text: str) -> list[str]:
+        """Extract factual claims from text using NLP techniques.
 
         Args:
             text: Input text to analyze
@@ -354,9 +317,8 @@ class HallucinationEvaluator:
 
         return claims
 
-    def detect_medical_fabrications(self, generated: str) -> Dict:
-        """
-        Detect fabricated medical entities and relationships
+    def detect_medical_fabrications(self, generated: str) -> dict:
+        """Detect fabricated medical entities and relationships
         """
         entities = self.ner(generated)
         fabricated = []
@@ -364,9 +326,7 @@ class HallucinationEvaluator:
         for entity in entities:
             # Check if entity exists in medical knowledge bases
             if entity["entity_group"] in ["DISEASE", "DRUG", "ANATOMY"]:
-                if not self.umls.exists(entity["word"]) and not self.mesh.exists(
-                    entity["word"]
-                ):
+                if not self.umls.exists(entity["word"]) and not self.mesh.exists(entity["word"]):
                     fabricated.append(
                         {
                             "entity": entity["word"],
@@ -380,9 +340,8 @@ class HallucinationEvaluator:
             "fabrication_score": len(fabricated) / (len(entities) + 1e-6),
         }
 
-    def check_clinical_guidelines(self, generated: str) -> Dict:
-        """
-        Verify generated content against clinical guidelines
+    def check_clinical_guidelines(self, generated: str) -> dict:
+        """Verify generated content against clinical guidelines
         """
         # This would integrate with guideline databases like UpToDate or PubMed
         violations = []
@@ -394,6 +353,22 @@ class HallucinationEvaluator:
             "guideline_violations": guideline_matches["contradictions"],
             "evidence_based_score": guideline_matches["entailments"],
         }
+
+    def achmi_score(self, source_ents: list[str], gen_ents: list[str], captions: list[str]) -> dict:
+        halluc_components = set(gen_ents) - set(source_ents)
+        achmi_i = len(halluc_components) / len(gen_ents) if gen_ents else 0
+        halluc_sentences = [any(e in halluc_components for e in caption.split()) for caption in captions]
+        achmi_s = sum(halluc_sentences) / len(captions) if captions else 0
+        return {"achmi_i": achmi_i, "achmi_s": achmi_s}
+
+    def semantic_entropy(self, client, prompt: str, n_samples: int = 10) -> float:
+        responses = [client.generate(prompt) for _ in range(n_samples)]
+        embeddings = self.similarity_model.encode(responses)
+        clustering = DBSCAN(eps=0.5, min_samples=2).fit(embeddings)
+        labels = clustering.labels_
+        unique, counts = np.unique(labels[labels != -1], return_counts=True)
+        probs = counts / counts.sum() if counts.sum() > 0 else [1]
+        return stats.entropy(probs)
 
 
 class MetricCalculator:
@@ -410,19 +385,15 @@ class MetricCalculator:
                 f"Original error: {str(e)}"
             )
 
-    def calculate_all(self, references: List[str], predictions: List[str]) -> Dict:
+    def calculate_all(self, references: list[str], predictions: list[str]) -> dict:
         """Calculate all metrics between references and predictions"""
         # ROUGE (handles multiple references automatically)
-        rouge_results = self.rouge.compute(
-            predictions=predictions, references=references, use_stemmer=True
-        )
+        rouge_results = self.rouge.compute(predictions=predictions, references=references, use_stemmer=True)
 
         # BLEU (requires specific formatting)
         bleu_results = self.bleu.compute(
             predictions=predictions,
-            references=[
-                [ref] for ref in references
-            ],  # List of references per prediction
+            references=[[ref] for ref in references],  # List of references per prediction
         )
 
         # BERTScore (computes similarity)

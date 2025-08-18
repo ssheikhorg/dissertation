@@ -1,7 +1,7 @@
-from app.api_models import OpenAIClient, AnthropicClient
-from app.dataset_loader import DatasetLoader
 import yaml
 
+from app.api_models import AnthropicClient, OpenAIClient
+from app.dataset_loader import DatasetLoader
 from app.models import ModelEvaluator
 from app.visualizations import create_radar_plot
 

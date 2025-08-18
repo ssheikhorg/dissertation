@@ -1,0 +1,39 @@
+# .ruff.toml
+line-length = 119
+target-version = "py312"
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "migrations",
+    "tests",
+    "cdk.out",
+]
+
+[lint]
+select = ["E", "F", "W", "I", "N", "D", "UP", "S", "B", "Q", "RUF100"]
+ignore = [
+    "D104",
+    "D100",
+    "D103",
+    "D101",
+    "D102",
+    "D106",
+    "D107",
+    "D415"
+]
+fixable = ["E", "F", "W", "I", "N", "D", "UP", "S", "B", "Q", "RUF100"]
+
+[lint.isort]
+known-first-party = ["my_project"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
+
+[lint.per-file-ignores]
+"tests/*" = ["S101"]
