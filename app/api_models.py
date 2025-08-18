@@ -2,24 +2,34 @@ from typing import Any
 
 import google.generativeai as genai
 import httpx
+import numpy as np
 import openai
 import torch
 from anthropic import Anthropic
 from lime.lime_text import LimeTextExplainer
-from pydantic import BaseModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    pipeline,
+)
 
-from app.config import settings
-from app.retrievers import PubMedRetriever
+from .clients import ModelClient
+from .config import settings
+from .data import PubMedRetriever
 
 
-class PubMedArticle(BaseModel):
-    pmid: str
-    title: str
-    abstract: str
-    authors: list[str]
-    publication_date: str
-    journal: str
+class BiasAnalyzer:
+    def __init__(self):
+        self.classifier = pipeline("text-classification", model="unitary/unbiased-toxic-roberta")
+
+    def analyze_responses(self, responses: list[str]) -> dict:
+        results = self.classifier(responses)
+        toxic_scores = [r["score"] if r["label"] == "toxic" else 0 for r in results]
+        return {
+            "toxicity_score": np.mean(toxic_scores),
+            "max_toxicity": max(toxic_scores),
+            "toxic_count": sum(score > 0.5 for score in toxic_scores),
+        }
 
 
 class HuggingFaceModel:
@@ -40,55 +50,6 @@ class HuggingFaceModel:
             temperature=kwargs.get("temperature", settings.models[self.model_name].temperature),
         )
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-
-class ModelClient:
-    """Base class for all API model clients"""
-
-    _registry = {
-        "gpt-4": OpenAIClient,
-        "claude-3-opus-20240229": AnthropicClient,
-        "gemini-pro": GeminiClient,
-        "grok-beta": xAIClient,
-        "llama-2-7b": HuggingFaceModel,
-        "mistral-7b": HuggingFaceModel,
-        "deepseek-7b": HuggingFaceModel,
-        "qwen-7b": HuggingFaceModel,
-    }
-
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-        self.config = settings.models[model_name]
-
-    @classmethod
-    def register_client(cls, name: str):
-        """Decorator to register model client classes"""
-
-        def wrapper(client_class):
-            cls._registry[name] = client_class
-            return client_class
-
-        return wrapper
-
-    @classmethod
-    def get_client(cls, model_name: str, mitigation: str = None) -> "ModelClient":
-        """Factory method to get the appropriate client"""
-        if model_name not in cls._registry:
-            raise ValueError(f"No client registered for model: {model_name}")
-
-        client_class = cls._registry[model_name]
-        client = client_class(model_name)
-
-        if mitigation == "rag":
-            if not hasattr(client, "retriever"):
-                client.retriever = PubMedRetriever()
-        elif mitigation == "lora":
-            pass
-
-        return client
-
-    def generate(self, prompt: str, **kwargs) -> str:
-        raise NotImplementedError
 
 
 @ModelClient.register_client("xai")

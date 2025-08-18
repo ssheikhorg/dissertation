@@ -9,3 +9,6 @@ __pycache__/
 build/
 # Installer logs
 pip-log.txt
+
+# env secrets
+.env

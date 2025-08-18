@@ -1,36 +1,51 @@
-
 import evaluate
 import numpy as np
 import pandas as pd
-import scipy.stats as stats
 import spacy
-from datasets import load_dataset
-from peft import LoraConfig, get_peft_model
 from sentence_transformers import SentenceTransformer, util
-from sklearn.cluster import DBSCAN
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    Trainer,
-    TrainingArguments,
-    pipeline,
-)
+from transformers import pipeline
 
-from app.api_models import ModelClient
-from app.config import settings
+from .config import settings
 
 
-class BiasAnalyzer:
+class MetricCalculator:
     def __init__(self):
-        self.classifier = pipeline("text-classification", model="unitary/unbiased-toxic-roberta")
+        """Initialize all metrics with error handling"""
+        try:
+            self.rouge = evaluate.load("rouge")
+            self.bleu = evaluate.load("bleu")
+            self.bertscore = evaluate.load("bertscore")
+        except Exception as e:
+            raise ImportError(
+                "Metric loading failed. Ensure you've installed all required packages:\n"
+                "pip install evaluate sacrebleu bert-score rouge-score nltk\n"
+                f"Original error: {str(e)}"
+            )
 
-    def analyze_responses(self, responses: list[str]) -> dict:
-        results = self.classifier(responses)
-        toxic_scores = [r["score"] if r["label"] == "toxic" else 0 for r in results]
+    def calculate_all(self, references: list[str], predictions: list[str]) -> dict:
+        """Calculate all metrics between references and predictions"""
+        # ROUGE (handles multiple references automatically)
+        rouge_results = self.rouge.compute(predictions=predictions, references=references, use_stemmer=True)
+
+        # BLEU (requires specific formatting)
+        bleu_results = self.bleu.compute(
+            predictions=predictions,
+            references=[[ref] for ref in references],  # List of references per prediction
+        )
+
+        # BERTScore (computes similarity)
+        bertscore_results = self.bertscore.compute(
+            predictions=predictions,
+            references=references,
+            lang="en",
+            model_type="microsoft/deberta-xlarge-mnli",  # Best for medical text
+        )
+
         return {
-            "toxicity_score": np.mean(toxic_scores),
-            "max_toxicity": max(toxic_scores),
-            "toxic_count": sum(score > 0.5 for score in toxic_scores),
+            "rougeL": rouge_results["rougeL"].mid.fmeasure,  # Get F1 score
+            "bleu": bleu_results["bleu"],
+            "bertscore_f1": np.mean(bertscore_results["f1"]),
+            "exact_match": self._calculate_exact_match(references, predictions),
         }
 
 
@@ -147,46 +162,6 @@ class ConsistencyEvaluator:
         # Simple sentence splitting - could be enhanced with NLP
         sentences = [s.strip() for s in text.split(".") if s.strip()]
         return sentences[:10]  # Limit to first 10 sentences for efficiency
-
-
-class ModelEvaluator:
-    def __init__(self, config: dict = None):
-        self.config = config or {}
-        self.metric_calc = MetricCalculator()
-        self.bias_analyzer = BiasAnalyzer()
-        self.consistency_eval = ConsistencyEvaluator(self.config)
-
-    def evaluate_model(self, model_name: str, prompts: list[dict], mitigation: str = None) -> pd.DataFrame:
-        model_client = ModelClient.get_client(model_name)
-        results = []
-
-        for prompt in prompts:
-            response = model_client.generate(prompt["clean_prompt"])
-
-            metrics = self.metric_calc.calculate_all([prompt["clean_reference"]], [response])
-
-            bias = self.bias_analyzer.analyze_responses([response])
-            self_consistency = self.consistency_eval.self_consistency(response)
-
-            results.append(
-                {
-                    "model": model_name,
-                    "prompt": prompt["original_prompt"],
-                    "response": response,
-                    **metrics,
-                    **bias,
-                    **self_consistency,
-                }
-            )
-
-        return pd.DataFrame(results)
-
-    def compare_models(self, model_names: list[str], prompts: list[dict]) -> pd.DataFrame:
-        all_results = []
-        for model_name in model_names:
-            results = self.evaluate_model(model_name, prompts)
-            all_results.append(results)
-        return pd.concat(all_results)
 
 
 class HallucinationEvaluator:
@@ -318,8 +293,7 @@ class HallucinationEvaluator:
         return claims
 
     def detect_medical_fabrications(self, generated: str) -> dict:
-        """Detect fabricated medical entities and relationships
-        """
+        """Detect fabricated medical entities and relationships"""
         entities = self.ner(generated)
         fabricated = []
 
@@ -341,8 +315,7 @@ class HallucinationEvaluator:
         }
 
     def check_clinical_guidelines(self, generated: str) -> dict:
-        """Verify generated content against clinical guidelines
-        """
+        """Verify generated content against clinical guidelines"""
         # This would integrate with guideline databases like UpToDate or PubMed
         violations = []
 
@@ -371,45 +344,117 @@ class HallucinationEvaluator:
         return stats.entropy(probs)
 
 
-class MetricCalculator:
-    def __init__(self):
-        """Initialize all metrics with error handling"""
-        try:
-            self.rouge = evaluate.load("rouge")
-            self.bleu = evaluate.load("bleu")
-            self.bertscore = evaluate.load("bertscore")
-        except Exception as e:
-            raise ImportError(
-                "Metric loading failed. Ensure you've installed all required packages:\n"
-                "pip install evaluate sacrebleu bert-score rouge-score nltk\n"
-                f"Original error: {str(e)}"
+class ModelEvaluator:
+    def __init__(self, config: dict = None):
+        self.config = config or {}
+        self.metric_calc = MetricCalculator()
+        self.bias_analyzer = BiasAnalyzer()
+        self.consistency_eval = ConsistencyEvaluator(self.config)
+
+    def evaluate_model(self, model_name: str, prompts: list[dict], mitigation: str = None) -> pd.DataFrame:
+        model_client = ModelClient.get_client(model_name)
+        results = []
+
+        for prompt in prompts:
+            response = model_client.generate(prompt["clean_prompt"])
+
+            metrics = self.metric_calc.calculate_all([prompt["clean_reference"]], [response])
+
+            bias = self.bias_analyzer.analyze_responses([response])
+            self_consistency = self.consistency_eval.self_consistency(response)
+
+            results.append(
+                {
+                    "model": model_name,
+                    "prompt": prompt["original_prompt"],
+                    "response": response,
+                    **metrics,
+                    **bias,
+                    **self_consistency,
+                }
             )
 
-    def calculate_all(self, references: list[str], predictions: list[str]) -> dict:
-        """Calculate all metrics between references and predictions"""
-        # ROUGE (handles multiple references automatically)
-        rouge_results = self.rouge.compute(predictions=predictions, references=references, use_stemmer=True)
+        return pd.DataFrame(results)
 
-        # BLEU (requires specific formatting)
-        bleu_results = self.bleu.compute(
-            predictions=predictions,
-            references=[[ref] for ref in references],  # List of references per prediction
-        )
+    def compare_models(self, model_names: list[str], prompts: list[dict]) -> pd.DataFrame:
+        all_results = []
+        for model_name in model_names:
+            results = self.evaluate_model(model_name, prompts)
+            all_results.append(results)
+        return pd.concat(all_results)
 
-        # BERTScore (computes similarity)
-        bertscore_results = self.bertscore.compute(
-            predictions=predictions,
-            references=references,
-            lang="en",
-            model_type="microsoft/deberta-xlarge-mnli",  # Best for medical text
-        )
 
-        return {
-            "rougeL": rouge_results["rougeL"].mid.fmeasure,  # Get F1 score
-            "bleu": bleu_results["bleu"],
-            "bertscore_f1": np.mean(bertscore_results["f1"]),
-            "exact_match": self._calculate_exact_match(references, predictions),
+class MedicalModelEvaluator:
+    def __init__(self):
+        """Initialize medical-specific evaluator with healthcare-focused metrics"""
+        self.hallucination_eval = HallucinationEvaluator()
+        self.metric_calc = MetricCalculator()
+        self.consistency_eval = ConsistencyEvaluator(settings.evaluation)
+
+    def evaluate(self, model_client, prompts: list[dict]) -> dict:
+        """Evaluate model performance on medical prompts
+
+        Args:
+            model_client: Initialized model client
+            prompts: List of preprocessed prompts
+
+        Returns:
+            Dictionary containing comprehensive evaluation results
+        """
+        results = {
+            "total_prompts": len(prompts),
+            "hallucination_rate": 0,
+            "accuracy": 0,
+            "fact_score": 0,
+            "medical_bleu": 0,
+            "toxicity_score": 0,
+            "fabrication_score": 0,
+            "guideline_violations": 0,
         }
+
+        # Aggregate metrics across all prompts
+        all_metrics = []
+
+        for prompt in prompts:
+            response = model_client.generate(prompt["clean_prompt"])
+
+            # Basic text metrics
+            metrics = self.metric_calc.calculate_all([prompt["clean_reference"]], [response])
+
+            # Medical-specific evaluations
+            hallucination = self.hallucination_eval.factual_consistency(prompt["clean_reference"], response)
+
+            fabrication = self.hallucination_eval.detect_medical_fabrications(response)
+            guidelines = self.hallucination_eval.check_clinical_guidelines(response)
+
+            # Aggregate results
+            all_metrics.append(
+                {
+                    **metrics,
+                    **hallucination,
+                    **fabrication,
+                    **guidelines,
+                    "response": response,
+                }
+            )
+
+        # Calculate aggregate scores
+        if all_metrics:
+            df = pd.DataFrame(all_metrics)
+            results.update(
+                {
+                    "hallucination_rate": 1 - df["fact_score"].mean(),
+                    "accuracy": df["exact_match"].mean(),
+                    "fact_score": df["fact_score"].mean(),
+                    "medical_bleu": df.get("medical_bleu", 0).mean(),
+                    "toxicity_score": df.get("toxicity_score", 0).mean(),
+                    "fabrication_score": df.get("fabrication_score", 0).mean(),
+                    "guideline_violations": df.get("guideline_violations", 0).mean(),
+                    "sample_responses": df["response"].iloc[:3].tolist(),  # Include sample responses
+                }
+            )
+
+        return results
 
 
 class MedicalLoRAFineTuner:
@@ -463,3 +508,142 @@ class MedicalLoRAFineTuner:
 
     def _preprocess_function(self, examples):
         return self.tokenizer(examples["text"], truncation=True, max_length=512)
+
+
+def compare_models(model_names: list[str], prompts: list[dict]) -> dict:
+    """Compare multiple models on the same set of prompts
+
+    Args:
+        model_names: List of model names to compare
+        prompts: List of preprocessed prompts to evaluate on
+
+    Returns:
+        Dictionary containing comparison results with:
+        - Individual model results
+        - Comparative analysis
+        - Statistical significance
+    """
+    # Validate input
+    if not model_names:
+        raise ValueError("At least one model name must be provided")
+
+    if not prompts:
+        raise ValueError("No prompts provided for evaluation")
+
+    # Evaluate each model (parallelized for efficiency)
+    with ThreadPoolExecutor() as executor:
+        futures = {
+            model_name: executor.submit(evaluate_single_model, model_name, prompts) for model_name in model_names
+        }
+        all_results = {model_name: future.result() for model_name, future in futures.items()}
+
+    # Generate comparative analysis
+    comparison = generate_comparison_metrics(all_results)
+
+    return {
+        "models": all_results,
+        "comparison": comparison,
+        "prompt_count": len(prompts),
+        "dataset_stats": get_dataset_stats(prompts),
+    }
+
+
+def evaluate_single_model(model_name: str, prompts: list[dict]) -> dict:
+    """Evaluate a single model on the given prompts"""
+    try:
+        # Get per-prompt results
+        results_df = model_evaluator.evaluate_model(model_name, prompts)
+
+        # Calculate aggregate metrics
+        return {
+            "metrics": calculate_aggregate_metrics(results_df),
+            "sample_responses": get_sample_responses(results_df),
+            "error_analysis": analyze_errors(results_df),
+        }
+    except Exception as e:
+        return {"error": str(e), "metrics": None, "sample_responses": None}
+
+
+def calculate_aggregate_metrics(results_df: pd.DataFrame) -> dict:
+    """Calculate aggregate metrics from individual results"""
+    if results_df.empty:
+        return {}
+
+    return {
+        "accuracy": results_df["exact_match"].mean(),
+        "hallucination_rate": 1 - results_df["fact_score"].mean(),
+        "toxicity_score": results_df["toxicity_score"].mean(),
+        "consistency": results_df["self_consistency"].mean(),
+        "rougeL": results_df["rougeL"].mean(),
+        "medical_bleu": results_df.get("medical_bleu", np.nan).mean(),
+        "response_length": results_df["response"].str.len().mean(),
+    }
+
+
+def get_sample_responses(results_df: pd.DataFrame, n: int = 3) -> list[dict]:
+    """Get sample responses with reference comparisons"""
+    samples = []
+    for _, row in results_df.sample(min(n, len(results_df))).iterrows():
+        samples.append(
+            {
+                "prompt": row["prompt"],
+                "reference": row["reference"],
+                "response": row["response"],
+                "fact_score": row["fact_score"],
+                "is_contradiction": row.get("is_contradiction", False),
+            }
+        )
+    return samples
+
+
+def analyze_errors(results_df: pd.DataFrame) -> dict:
+    """Analyze common error patterns"""
+    if results_df.empty:
+        return {}
+
+    # Get examples where fact_score < 0.5 (likely hallucinations)
+    hallucinations = results_df[results_df["fact_score"] < 0.5]
+
+    return {
+        "hallucination_examples": get_sample_responses(hallucinations, 2) if not hallucinations.empty else [],
+        "common_error_patterns": find_common_patterns(hallucinations["response"]),
+        "hallucination_rate": len(hallucinations) / len(results_df),
+    }
+
+
+def find_common_patterns(responses: pd.Series) -> list[str]:
+    """Identify common patterns in erroneous responses"""
+    # This is a placeholder - implement proper NLP analysis
+    from collections import Counter
+
+    from nltk import ngrams
+
+    # Simple n-gram analysis
+    all_ngrams = []
+    for text in responses:
+        tokens = text.lower().split()
+        all_ngrams.extend(ngrams(tokens, 3))
+
+    return [" ".join(gram) for gram, count in Counter(all_ngrams).most_common(3)]
+
+
+def generate_comparison_metrics(all_results: dict[str, dict]) -> dict:
+    """Generate comparative metrics between models"""
+    comparison = {}
+    metrics = ["accuracy", "hallucination_rate", "consistency", "rougeL"]
+
+    for metric in metrics:
+        values = {
+            model: results["metrics"][metric] for model, results in all_results.items() if results.get("metrics")
+        }
+
+        if values:
+            comparison[metric] = {
+                "best_model": max(values.items(), key=lambda x: x[1])[0],
+                "worst_model": min(values.items(), key=lambda x: x[1])[0],
+                "range": max(values.values()) - min(values.values()),
+                "mean": np.mean(list(values.values())),
+                "values": values,
+            }
+
+    return comparison

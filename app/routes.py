@@ -2,13 +2,12 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 
-from app.api_clients import ModelClient
-from app.config import settings
-from app.retrievers import (
+from .clients import ModelClient
+from .config import settings
+from .data import load_baseline, load_test_prompts
+from .evaluators import (
     MedicalModelEvaluator,
     compare_models,
-    load_baseline,
-    load_test_prompts,
 )
 
 router = APIRouter()
