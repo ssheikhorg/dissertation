@@ -2,7 +2,6 @@ from typing import Any
 
 import google.generativeai as genai
 import httpx
-import numpy as np
 import openai
 import torch
 from anthropic import Anthropic
@@ -10,26 +9,11 @@ from lime.lime_text import LimeTextExplainer
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    pipeline,
 )
 
 from .clients import ModelClient
 from .config import settings
 from .data import PubMedRetriever
-
-
-class BiasAnalyzer:
-    def __init__(self):
-        self.classifier = pipeline("text-classification", model="unitary/unbiased-toxic-roberta")
-
-    def analyze_responses(self, responses: list[str]) -> dict:
-        results = self.classifier(responses)
-        toxic_scores = [r["score"] if r["label"] == "toxic" else 0 for r in results]
-        return {
-            "toxicity_score": np.mean(toxic_scores),
-            "max_toxicity": max(toxic_scores),
-            "toxic_count": sum(score > 0.5 for score in toxic_scores),
-        }
 
 
 class HuggingFaceModel:

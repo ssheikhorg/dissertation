@@ -1,12 +1,33 @@
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
+
 import evaluate
 import numpy as np
 import pandas as pd
 import spacy
+from datasets import load_dataset
+from peft import LoraConfig, get_peft_model
+from scipy.stats import stats
 from sentence_transformers import SentenceTransformer, util
-from transformers import pipeline
+from sklearn.cluster import DBSCAN
+from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, pipeline
 
 from .config import settings
-from .data import DatasetLoader
+from .data import DatasetLoader, get_dataset_stats
+
+
+class BiasAnalyzer:
+    def __init__(self):
+        self.classifier = pipeline("text-classification", model="unitary/unbiased-toxic-roberta")
+
+    def analyze_responses(self, responses: list[str]) -> dict:
+        results = self.classifier(responses)
+        toxic_scores = [r["score"] if r["label"] == "toxic" else 0 for r in results]
+        return {
+            "toxicity_score": np.mean(toxic_scores),
+            "max_toxicity": max(toxic_scores),
+            "toxic_count": sum(score > 0.5 for score in toxic_scores),
+        }
 
 
 class MetricCalculator:
@@ -307,9 +328,9 @@ class HallucinationEvaluator:
             if entity["entity_group"] in ["DISEASE", "DRUG", "ANATOMY"]:
                 term = entity["word"]
                 if (
-                        (entity["entity_group"] == "DISEASE" and term not in self.diseases)
-                        or (entity["entity_group"] == "DRUG" and term not in self.drugs)
-                        or (entity["entity_group"] == "ANATOMY" and term not in self.anatomy)
+                    (entity["entity_group"] == "DISEASE" and term not in self.diseases)
+                    or (entity["entity_group"] == "DRUG" and term not in self.drugs)
+                    or (entity["entity_group"] == "ANATOMY" and term not in self.anatomy)
                 ):
                     fabricated.append(
                         {
@@ -360,8 +381,8 @@ class ModelEvaluator:
         self.bias_analyzer = BiasAnalyzer()
         self.consistency_eval = ConsistencyEvaluator(self.config)
 
-    def evaluate_model(self, model_name: str, prompts: list[dict], mitigation: str = None) -> pd.DataFrame:
-        model_client = ModelClient.get_client(model_name)
+    def evaluate_model(self, model_name: str, prompts: list[dict], client: "ModelClient") -> pd.DataFrame:
+        model_client = client.get_client(model_name)
         results = []
 
         for prompt in prompts:
@@ -561,7 +582,7 @@ def evaluate_single_model(model_name: str, prompts: list[dict]) -> dict:
     """Evaluate a single model on the given prompts"""
     try:
         # Get per-prompt results
-        results_df = model_evaluator.evaluate_model(model_name, prompts)
+        results_df = ModelEvaluator().evaluate_model(model_name, prompts)
 
         # Calculate aggregate metrics
         return {
@@ -656,3 +677,261 @@ def generate_comparison_metrics(all_results: dict[str, dict]) -> dict:
             }
 
     return comparison
+
+
+def generate_improvement_suggestions(current_results: dict, baseline: dict) -> list:
+    """Generate specific suggestions to reduce hallucinations"""
+    suggestions = []
+
+    # Hallucination reduction suggestions
+    if current_results["hallucination_rate"] > 0.2:
+        suggestions.append(
+            {
+                "category": "High Priority",
+                "suggestion": "Implement RAG (Retrieval Augmented Generation) to ground responses in verified medical literature",
+                "expected_impact": "30-50% reduction in hallucinations",
+            }
+        )
+
+    if current_results.get("fabrication_score", 0) > 0.1:
+        suggestions.append(
+            {
+                "category": "Medium Priority",
+                "suggestion": "Add entity verification against medical knowledge bases",
+                "expected_impact": "20-40% reduction in fabricated entities",
+            }
+        )
+
+    if current_results.get("guideline_violations", 0) > 0.15:
+        suggestions.append(
+            {
+                "category": "High Priority",
+                "suggestion": "Integrate clinical guideline checking using NLI models",
+                "expected_impact": "40-60% reduction in guideline violations",
+            }
+        )
+
+    # General suggestions based on performance
+    accuracy_gap = baseline["accuracy"] - current_results["accuracy"]
+    if accuracy_gap > 0.1:
+        suggestions.append(
+            {
+                "category": "Medium Priority",
+                "suggestion": "Fine-tune with medical QA pairs and implement consistency checks",
+                "expected_impact": f"{round(accuracy_gap * 100)}% accuracy improvement",
+            }
+        )
+
+    # Add model-specific suggestions
+    suggestions.append(
+        {
+            "category": "General",
+            "suggestion": "Implement multi-step verification: claim extraction → fact checking → response generation",
+            "expected_impact": "25-45% overall improvement",
+        }
+    )
+
+    return suggestions
+
+
+def prepare_bar_chart_data(general_df: pd.DataFrame, metric: str, models: list[str] = None) -> dict[str, Any]:
+    """Prepare data for bar chart visualization"""
+    if general_df.empty:
+        return {"error": "No data available for visualization"}
+
+    # Filter by specific models if provided
+    filtered_df = general_df
+    if models and len(models) > 0:
+        filtered_df = general_df[general_df["model"].isin(models)]
+
+    # Group by model and calculate average for the selected metric
+    model_avgs = filtered_df.groupby("model")[metric].mean().reset_index()
+
+    # Prepare chart data
+    chart_data = {
+        "type": "bar",
+        "data": {
+            "labels": model_avgs["model"].tolist(),
+            "datasets": [
+                {
+                    "label": metric.replace("_", " ").title(),
+                    "data": model_avgs[metric].tolist(),
+                    "backgroundColor": [],
+                    "borderColor": [],
+                    "borderWidth": 1,
+                }
+            ],
+        },
+        "options": {
+            "responsive": True,
+            "plugins": {
+                "title": {
+                    "display": True,
+                    "text": f"{metric.replace('_', ' ').title()} Comparison",
+                    "font": {"size": 16},
+                }
+            },
+            "scales": {
+                "y": {"beginAtZero": True, "title": {"display": True, "text": metric.replace("_", " ").title()}}
+            },
+        },
+    }
+
+    # Assign colors based on metric value
+    for value in model_avgs[metric]:
+        if "hallucination" in metric or "toxicity" in metric:
+            # Red scale for negative metrics
+            intensity = min(1.0, value * 3)
+            chart_data["data"]["datasets"][0]["backgroundColor"].append(f"rgba(231, 76, 60, {0.6 + intensity * 0.4})")
+            chart_data["data"]["datasets"][0]["borderColor"].append("rgba(231, 76, 60, 1)")
+        else:
+            # Green scale for positive metrics
+            intensity = min(1.0, value * 1.5)
+            chart_data["data"]["datasets"][0]["backgroundColor"].append(f"rgba(46, 204, 113, {0.6 + intensity * 0.4})")
+            chart_data["data"]["datasets"][0]["borderColor"].append("rgba(46, 204, 113, 1)")
+
+    return chart_data
+
+
+def prepare_radar_data(general_df: pd.DataFrame, models: list[str], metrics: list[str]) -> dict[str, Any]:
+    """Prepare data for radar chart visualization"""
+    if general_df.empty:
+        return {"error": "No data available for visualization"}
+
+    # Default metrics if not specified
+    if not metrics or len(metrics) == 0:
+        metrics = ["hallucination_rate", "accuracy", "fact_score", "toxicity_score"]
+
+    # Filter by specific models if provided
+    selected_models = models if models and len(models) > 0 else general_df["model"].unique().tolist()
+
+    chart_data = {
+        "type": "radar",
+        "data": {"labels": [metric.replace("_", " ").title() for metric in metrics], "datasets": []},
+        "options": {
+            "responsive": True,
+            "plugins": {"title": {"display": True, "text": "Model Performance Radar Chart", "font": {"size": 16}}},
+            "scales": {"r": {"beginAtZero": True, "max": 1, "ticks": {"stepSize": 0.2}}},
+        },
+    }
+
+    # Colors for different models
+    colors = [
+        "rgba(255, 99, 132, 0.6)",  # Red
+        "rgba(54, 162, 235, 0.6)",  # Blue
+        "rgba(255, 206, 86, 0.6)",  # Yellow
+        "rgba(75, 192, 192, 0.6)",  # Green
+        "rgba(153, 102, 255, 0.6)",  # Purple
+        "rgba(255, 159, 64, 0.6)",  # Orange
+    ]
+
+    # Calculate averages for each model and metric
+    for i, model in enumerate(selected_models):
+        model_data = general_df[general_df["model"] == model]
+        averages = []
+
+        for metric in metrics:
+            values = model_data[metric].dropna()
+            avg = values.mean() if len(values) > 0 else 0
+
+            # For negative metrics, invert for radar (so center is good)
+            if "hallucination" in metric or "toxicity" in metric:
+                averages.append(1 - avg)  # Invert so lower is better
+            else:
+                averages.append(avg)
+
+        color_idx = i % len(colors)
+        chart_data["data"]["datasets"].append(
+            {
+                "label": model,
+                "data": averages,
+                "backgroundColor": colors[color_idx],
+                "borderColor": colors[color_idx].replace("0.6", "1"),
+                "borderWidth": 2,
+                "pointBackgroundColor": colors[color_idx].replace("0.6", "1"),
+                "pointBorderColor": "#fff",
+                "pointHoverBackgroundColor": "#fff",
+                "pointHoverBorderColor": colors[color_idx].replace("0.6", "1"),
+            }
+        )
+
+    return chart_data
+
+
+def prepare_scatter_data(
+    general_df: pd.DataFrame, primary_metric: str, secondary_metric: str = None
+) -> dict[str, Any]:
+    """Prepare data for scatter plot visualization"""
+    if general_df.empty:
+        return {"error": "No data available for visualization"}
+
+    # Default secondary metric if not specified
+    if not secondary_metric:
+        secondary_metric = "accuracy" if "hallucination" in primary_metric else "hallucination_rate"
+
+    chart_data = {
+        "type": "scatter",
+        "data": {"datasets": []},
+        "options": {
+            "responsive": True,
+            "plugins": {
+                "title": {
+                    "display": True,
+                    "text": f"{primary_metric.replace('_', ' ').title()} vs {secondary_metric.replace('_', ' ').title()}",
+                    "font": {"size": 16},
+                },
+                "tooltip": {
+                    "callbacks": {
+                        "label": "function(context) { return `${context.dataset.label}: (${context.parsed.x.toFixed(3)}, ${context.parsed.y.toFixed(3)})`; }"
+                    }
+                },
+            },
+            "scales": {
+                "x": {
+                    "title": {"display": True, "text": primary_metric.replace("_", " ").title()},
+                    "beginAtZero": True,
+                    "max": 1,
+                },
+                "y": {
+                    "title": {"display": True, "text": secondary_metric.replace("_", " ").title()},
+                    "beginAtZero": True,
+                    "max": 1,
+                },
+            },
+        },
+    }
+
+    # Group data by model
+    models = general_df["model"].unique()
+    colors = [
+        "rgba(255, 99, 132, 0.8)",  # Red
+        "rgba(54, 162, 235, 0.8)",  # Blue
+        "rgba(255, 206, 86, 0.8)",  # Yellow
+        "rgba(75, 192, 192, 0.8)",  # Green
+        "rgba(153, 102, 255, 0.8)",  # Purple
+        "rgba(255, 159, 64, 0.8)",  # Orange
+    ]
+
+    for i, model in enumerate(models):
+        model_data = general_df[general_df["model"] == model]
+        points = []
+
+        for _, row in model_data.iterrows():
+            if pd.notna(row[primary_metric]) and pd.notna(row[secondary_metric]):
+                points.append({"x": float(row[primary_metric]), "y": float(row[secondary_metric])})
+
+        if points:
+            color_idx = i % len(colors)
+            chart_data["data"]["datasets"].append(
+                {
+                    "label": model,
+                    "data": points,
+                    "backgroundColor": colors[color_idx],
+                    "borderColor": colors[color_idx].replace("0.8", "1"),
+                    "borderWidth": 1,
+                    "pointRadius": 8,
+                    "pointHoverRadius": 10,
+                }
+            )
+
+    return chart_data

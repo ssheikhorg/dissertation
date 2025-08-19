@@ -1,21 +1,22 @@
-import asyncio
 from enum import Enum
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from jinja2 import Environment, FileSystemLoader
-import httpx
-import openai
-from anthropic import Anthropic
 import google.generativeai as genai
+import httpx
+import matplotlib.pyplot as plt
+import numpy as np
+import openai
+import pandas as pd
+import seaborn as sns
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from anthropic import Anthropic
+from jinja2 import Environment, FileSystemLoader
 from lime.lime_text import LimeTextExplainer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 from .config import settings
 from .data import PubMedRetriever, load_test_prompts
-from .evaluators import compare_models, ModelEvaluator
+from .evaluators import ModelEvaluator, compare_models
+
 
 class ModelNameEnum(Enum):
     GPT_3_5 = "gpt-3.5-turbo"
@@ -27,10 +28,12 @@ class ModelNameEnum(Enum):
     DEEPSEEK_7B = "deepseek-7b"
     QWEN_7B = "qwen-7b"
 
+
 class ModelClient:
     """Base class for all API model clients"""
+
     _registry = {
-        ModelNameEnum.GPT_4.value: "OpenAIClient",
+        ModelNameEnum.GPT_3_5.value: "OpenAIClient",
         ModelNameEnum.CLAUDE_3_OPUS.value: "AnthropicClient",
         ModelNameEnum.GEMINI_PRO.value: "GeminiClient",
         ModelNameEnum.GROK_BETA.value: "xAIClient",
@@ -47,9 +50,11 @@ class ModelClient:
     @classmethod
     def register_client(cls, name: str):
         """Decorator to register model client classes"""
+
         def wrapper(client_class):
             cls._registry[name] = client_class.__name__
             return client_class
+
         return wrapper
 
     @classmethod
@@ -72,6 +77,7 @@ class ModelClient:
     async def generate(self, prompt: str, **kwargs) -> str:
         raise NotImplementedError
 
+
 @ModelClient.register_client("xai")
 class xAIClient(ModelClient):
     def __init__(self, model_name: str):
@@ -90,6 +96,7 @@ class xAIClient(ModelClient):
         async with httpx.AsyncClient(headers=headers) as client:
             response = await client.post(f"{self.base_url}/chat/completions", json=payload)
             return response.json()["choices"][0]["message"]["content"]
+
 
 @ModelClient.register_client("openai")
 class OpenAIClient(ModelClient):
@@ -127,6 +134,7 @@ class OpenAIClient(ModelClient):
         )
         return {"response": response.choices[0].message.content, "lime_explanation": exp.as_list()}
 
+
 @ModelClient.register_client("anthropic")
 class AnthropicClient(ModelClient):
     def __init__(self, model_name: str):
@@ -141,6 +149,7 @@ class AnthropicClient(ModelClient):
         )
         return response.content[0].text
 
+
 @ModelClient.register_client("gemini")
 class GeminiClient(ModelClient):
     def __init__(self, model_name: str):
@@ -151,6 +160,7 @@ class GeminiClient(ModelClient):
     async def generate(self, prompt, **kwargs):
         response = await self.model.generate_content_async(prompt)
         return response.text
+
 
 @ModelClient.register_client("huggingface")
 class HuggingFaceModel(ModelClient):
@@ -172,15 +182,15 @@ class HuggingFaceModel(ModelClient):
         )
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
+
 async def generate_visualization_data(
     model_names: list[str] = None,
     datasets: list[str] = ["pubmed_qa", "med_qa"],
     metrics: list[str] = ["accuracy", "hallucination_rate", "toxicity_score"],
     bias_types: list[str] = ["Gender", "Racial", "Political"],
-    n_samples: int = 100
+    n_samples: int = 100,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Generate DataFrames for visualization from model evaluation results.
+    """Generate DataFrames for visualization from model evaluation results.
 
     Args:
         model_names: List of model names to evaluate (default: all registered models).
@@ -205,24 +215,23 @@ async def generate_visualization_data(
         results = await compare_models(model_names, prompts)  # Async call
         for model, result in results["models"].items():
             if result.get("metrics"):
-                general_data.append({
-                    "model": model,
-                    "dataset": dataset,
-                    **result["metrics"]
-                })
+                general_data.append({"model": model, "dataset": dataset, **result["metrics"]})
                 # Generate bias data (placeholder: assumes bias_analyzer results)
                 bias_scores = await ModelEvaluator().evaluate_model(model, prompts, mitigation=None)
                 for bias_type in bias_types:
-                    bias_data.append({
-                        "model": model,
-                        "bias_type": bias_type,
-                        "score": bias_scores.get("toxicity_score", 0.0)  # Example: use real bias scores
-                    })
+                    bias_data.append(
+                        {
+                            "model": model,
+                            "bias_type": bias_type,
+                            "score": bias_scores.get("toxicity_score", 0.0),  # Example: use real bias scores
+                        }
+                    )
 
     general_df = pd.DataFrame(general_data)
     bias_df = pd.DataFrame(bias_data)
 
     return general_df, bias_df
+
 
 def create_grouped_barplot(
     data: pd.DataFrame,
@@ -265,6 +274,7 @@ def create_grouped_barplot(
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
+
 def metric_comparison_bars(
     results_df: pd.DataFrame,
     metrics: list[str],
@@ -301,6 +311,7 @@ def metric_comparison_bars(
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
+
 def stacked_bias_bars(
     results_df: pd.DataFrame,
     bias_types: list[str],
@@ -320,6 +331,7 @@ def stacked_bias_bars(
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
+
 
 def create_heatmap(
     data: pd.DataFrame,
@@ -352,6 +364,7 @@ def create_heatmap(
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
+
 def bias_heatmap(
     results_df: pd.DataFrame,
     model_names: list[str],
@@ -379,8 +392,10 @@ def bias_heatmap(
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
+
 def create_radar_plot(results: dict[str, dict], metrics: list[str]) -> None:
     import plotly.express as px  # Moved here to avoid top-level import
+
     plot_data = []
     for model, scores in results.items():
         for metric in metrics:
@@ -397,6 +412,7 @@ def create_radar_plot(results: dict[str, dict], metrics: list[str]) -> None:
     )
     fig.show()
 
+
 class ReportGenerator:
     def __init__(self, template_dir="templates"):
         self.env = Environment(loader=FileSystemLoader(template_dir))
@@ -407,6 +423,7 @@ class ReportGenerator:
         html_content = template.render(models_results=df.to_html(classes="data"), metrics=list(df.columns))
         with open(output_path, "w") as f:
             f.write(html_content)
+
 
 def plot_hallucination_reduction(results: dict, save_path: str = None):
     df = pd.DataFrame.from_dict(results, orient="index")

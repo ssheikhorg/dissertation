@@ -343,3 +343,83 @@ select {
         flex-wrap: wrap;
     }
 }
+
+/* Hallucination-specific styles */
+.metric-card.critical {
+    border-left: 4px solid #e74c3c;
+    background: #fdf2f2;
+}
+
+.metric-value.high {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.metric-value.low {
+    color: #27ae60;
+}
+
+.improvement {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.worsening {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.suggestions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.suggestion-card {
+    padding: 1rem;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border-left: 4px solid #3498db;
+}
+
+.suggestion-card.high-priority {
+    border-left-color: #e74c3c;
+    background: #fdf2f2;
+}
+
+.suggestion-card.medium-priority {
+    border-left-color: #f39c12;
+    background: #fef9e7;
+}
+
+.category-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.high-priority .category-badge {
+    background: #e74c3c;
+    color: white;
+}
+
+.medium-priority .category-badge {
+    background: #f39c12;
+    color: white;
+}
+
+.response-card {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+}
+
+.fact-score {
+    font-weight: bold;
+    color: #2c3e50;
+}

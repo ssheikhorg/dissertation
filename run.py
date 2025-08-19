@@ -1,6 +1,6 @@
 import asyncio
 
-from app.clients import generate_visualization_data, create_grouped_barplot, metric_comparison_bars, stacked_bias_bars
+from app.clients import create_grouped_barplot, generate_visualization_data, metric_comparison_bars, stacked_bias_bars
 
 
 # Example usage of generate_visualization_data
@@ -11,7 +11,7 @@ async def main():
         datasets=["pubmed_qa", "med_qa"],
         metrics=["accuracy", "hallucination_rate", "toxicity_score"],
         bias_types=["Gender", "Racial", "Political"],
-        n_samples=10  # Small for testing
+        n_samples=10,  # Small for testing
     )
 
     # Plotting examples
@@ -34,6 +34,7 @@ async def main():
         bias_types=["Gender", "Racial", "Political"],
         title="Bias Composition Across Models",
     )
+
 
 if __name__ == "__main__":
     asyncio.run(main())

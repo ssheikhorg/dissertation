@@ -235,8 +235,7 @@ def get_dataset_stats(prompts: list[dict]) -> dict:
 
 
 def load_test_prompts(
-        dataset_name: str, n_samples: int,
-        dataset_loader: DatasetLoader = DatasetLoader()
+    dataset_name: str, n_samples: int, dataset_loader: DatasetLoader = DatasetLoader()
 ) -> list[dict]:
     try:
         records = dataset_loader.get_test_prompts(dataset_name, n_samples)
