@@ -1,43 +1,39 @@
-import yaml
+import asyncio
 
-from app.api_models import AnthropicClient, OpenAIClient
-from app.dataset_loader import DatasetLoader
-from app.models import ModelEvaluator
-from app.visualizations import create_radar_plot
+from app.clients import generate_visualization_data, create_grouped_barplot, metric_comparison_bars, stacked_bias_bars
 
 
-def main():
-    # Load configuration
-    with open("config.yaml") as f:
-        config = yaml.safe_load(f)
+# Example usage of generate_visualization_data
+async def main():
+    # Generate data for all registered models
+    general_df, bias_df = await generate_visualization_data(
+        model_names=None,  # Use all models
+        datasets=["pubmed_qa", "med_qa"],
+        metrics=["accuracy", "hallucination_rate", "toxicity_score"],
+        bias_types=["Gender", "Racial", "Political"],
+        n_samples=10  # Small for testing
+    )
 
-    # Initialize components
-    dataset_loader = DatasetLoader()
-    evaluator = ModelEvaluator()
+    # Plotting examples
+    create_grouped_barplot(
+        data=general_df,
+        x_column="dataset",
+        y_column="accuracy",
+        hue_column="model",
+        title="Accuracy Comparison Across Datasets",
+    )
 
-    # Load test data
-    test_data = dataset_loader.get_test_prompts("truthful_qa", n_samples=50)
+    metric_comparison_bars(
+        results_df=general_df,
+        metrics=["accuracy", "hallucination_rate"],
+        title="Performance Metrics Comparison",
+    )
 
-    # Initialize models
-    models = {
-        "GPT-4": OpenAIClient(config["models"]["openai"]),
-        "Claude": AnthropicClient(config["models"]["anthropic"]),
-    }
-
-    # Evaluate each model
-    results = {}
-    for name, model in models.items():
-        print(f"Evaluating {name}...")
-        df = evaluator.evaluate_model(name, test_data, model)
-        results[name] = {
-            "accuracy": df["exact_match"].mean(),
-            "consistency": 1 - df["std_dev"].mean(),
-            "toxicity": df["toxicity_score"].mean(),
-        }
-
-    # Visualize results
-    create_radar_plot(results, ["accuracy", "consistency", "toxicity"])
-
+    stacked_bias_bars(
+        results_df=bias_df,
+        bias_types=["Gender", "Racial", "Political"],
+        title="Bias Composition Across Models",
+    )
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

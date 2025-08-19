@@ -1,42 +1,215 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Evaluation Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="/static/index.css" rel="stylesheet">
+</head>
+<body>
+    <nav>
+        <a href="#" onclick="showPage('home')">Home</a>
+        <a href="#" onclick="showPage('evaluate')">Single Model Evaluation</a>
+        <a href="#" onclick="showPage('compare')">Model Comparison</a>
+        <a href="#" onclick="showPage('visualize')">Visualizations</a>
+    </nav>
+    <main>
+        <!-- Home Page -->
+        <div id="home-page" class="page active">
+            <div class="hero">
+                <h1>Model Evaluation Dashboard</h1>
+                <p>Compare and evaluate different LLM models with comprehensive metrics</p>
+            </div>
 
-{% block extra_css %}
-<link href="/static/css/index.css" rel="stylesheet">
-{% endblock %}
+            <div class="features">
+                <div class="feature-card">
+                    <a href="#" onclick="showPage('evaluate')">
+                        <h2>Single Model Evaluation</h2>
+                        <p>Test individual model performance with detailed metrics</p>
+                    </a>
+                </div>
 
-{% block content %}
-<div class="hero">
-    <h1>Model Evaluation Dashboard</h1>
-    <p>Compare and evaluate different LLM models with comprehensive metrics</p>
-</div>
+                <div class="feature-card">
+                    <a href="#" onclick="showPage('compare')">
+                        <h2>Model Comparison</h2>
+                        <p>Compare multiple models side-by-side</p>
+                    </a>
+                </div>
 
-<div class="features">
-    <div class="feature-card" hx-boost="true">
-        <a href="/evaluate">
-            <h2>Single Model Evaluation</h2>
-            <p>Test individual model performance with detailed metrics</p>
-        </a>
-    </div>
+                <div class="feature-card">
+                    <a href="#" onclick="showPage('visualize')">
+                        <h2>Visualizations</h2>
+                        <p>Interactive charts and analysis</p>
+                    </a>
+                </div>
+            </div>
 
-    <div class="feature-card" hx-boost="true">
-        <a href="/compare">
-            <h2>Model Comparison</h2>
-            <p>Compare multiple models side-by-side</p>
-        </a>
-    </div>
+            <div class="recent-evaluations">
+                <h2>Recent Evaluations</h2>
+                <div hx-get="/api/recent-evaluations" hx-trigger="load">
+                    <p>Loading recent evaluations...</p>
+                </div>
+            </div>
+        </div>
 
-    <div class="feature-card" hx-boost="true">
-        <a href="/visualize">
-            <h2>Visualizations</h2>
-            <p>Interactive charts and analysis</p>
-        </a>
-    </div>
-</div>
+        <!-- Evaluation Page -->
+        <div id="evaluate-page" class="page">
+            <div class="evaluation-container">
+                <h1>Model Evaluation</h1>
 
-<div class="recent-evaluations">
-    <h2>Recent Evaluations</h2>
-    <div hx-get="/api/recent-evaluations" hx-trigger="load">
-        <p>Loading recent evaluations...</p>
-    </div>
-</div>
-{% endblock %}
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="model-select">Model:</label>
+                        <select id="model-select">
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            <option value="claude-2">Claude 2</option>
+                            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                            <option value="grok-beta">Grok Beta</option>
+                            <option value="llama-2-7b">LLaMA 2 (70B)</option>
+                            <option value="llama-2-70b">LLaMA 2 (70B)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="dataset-select-eval">Dataset:</label>
+                        <select id="dataset-select-eval">
+                            <option value="truthful_qa">Truthful QA</option>
+                            <option value="winobias">Winobias</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="sample-count-eval">Sample Count:</label>
+                        <input type="range" id="sample-count-eval" min="1" max="20" value="5">
+                        <span id="sample-count-value-eval">5</span>
+                    </div>
+
+                    <button
+                        hx-post="/api/evaluate"
+                        hx-include="#model-select, #dataset-select-eval, #sample-count-eval"
+                        hx-target="#results-eval"
+                        hx-indicator=".loading-eval"
+                        class="primary-button">
+                        Run Evaluation
+                    </button>
+                </div>
+
+                <div class="loading loading-eval" hx-indicator=".loading-eval">
+                    <div class="spinner"></div>
+                    <p>Evaluating model...</p>
+                </div>
+
+                <div id="results-eval"></div>
+            </div>
+        </div>
+
+        <!-- Comparison Page -->
+        <div id="compare-page" class="page">
+            <div class="comparison-container">
+                <h1>Model Comparison</h1>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Models to Compare:</label>
+                        <div class="model-selection">
+                            <select id="model1-select">
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="claude-2">Claude 2</option>
+                                <option value="llama-2-70b">LLaMA 2 (70B)</option>
+                            </select>
+                            <span>vs</span>
+                            <select id="model2-select">
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                <option value="claude-2">Claude 2</option>
+                                <option value="llama-2-70b">LLaMA 2 (70B)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="dataset-select-comp">Dataset:</label>
+                        <select id="dataset-select-comp">
+                            <option value="truthful_qa">Truthful QA</option>
+                            <option value="winobias">Winobias</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="sample-count-comp">Sample Count:</label>
+                        <input type="range" id="sample-count-comp" min="1" max="20" value="5">
+                        <span id="sample-count-value-comp">5</span>
+                    </div>
+
+                    <button
+                        hx-post="/api/compare"
+                        hx-include="#model1-select, #model2-select, #dataset-select-comp, #sample-count-comp"
+                        hx-target="#results-comp"
+                        hx-indicator=".loading-comp"
+                        class="primary-button">
+                        Compare Models
+                    </button>
+                </div>
+
+                <div class="loading loading-comp" hx-indicator=".loading-comp">
+                    <div class="spinner"></div>
+                    <p>Comparing models...</p>
+                </div>
+
+                <div id="results-comp"></div>
+            </div>
+        </div>
+
+        <!-- Visualization Page -->
+        <div id="visualize-page" class="page">
+            <div class="visualization-container">
+                <h1>Model Evaluation Visualizations</h1>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="visualization-type">Visualization Type:</label>
+                        <select id="visualization-type">
+                            <option value="bar">Bar Chart</option>
+                            <option value="radar">Radar Chart</option>
+                            <option value="scatter">Scatter Plot</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="metric-select">Metric:</label>
+                        <select id="metric-select">
+                            <option value="rougeL">ROUGE-L</option>
+                            <option value="exact_match">Exact Match</option>
+                            <option value="toxicity_score">Toxicity Score</option>
+                            <option value="self_consistency">Self Consistency</option>
+                        </select>
+                    </div>
+
+                    <button
+                        hx-get="/api/visualize"
+                        hx-include="#visualization-type, #metric-select"
+                        hx-target="#visualization-container"
+                        hx-indicator=".loading-viz"
+                        class="primary-button">
+                        Generate Visualization
+                    </button>
+                </div>
+
+                <div class="loading loading-viz" hx-indicator=".loading-viz">
+                    <div class="spinner"></div>
+                    <p>Generating visualization...</p>
+                </div>
+
+                <div id="visualization-container" class="chart-container">
+                    <!-- Visualization will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/scripts.js"></script>
+</body>
+</html>

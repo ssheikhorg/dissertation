@@ -1,19 +1,19 @@
 import json
 import os
+import re
+import string
 import time
 import xml.etree.ElementTree as ET
 from typing import Any
+
 import httpx
 import numpy as np
+import pandas as pd
 import yaml
 from datasets import load_dataset
 from pydantic import BaseModel
 
 from .config import settings
-from .data import DatasetLoader
-
-
-dataset_loader = DatasetLoader()
 
 
 class PubMedArticle(BaseModel):
@@ -23,88 +23,6 @@ class PubMedArticle(BaseModel):
     authors: list[str]
     publication_date: str
     journal: str
-
-
-def get_dataset_stats(prompts: list[dict]) -> dict:
-    """Calculate basic statistics about the evaluation dataset"""
-    ref_lengths = [len(p["original_reference"]) for p in prompts]
-    prompt_lengths = [len(p["original_prompt"]) for p in prompts]
-
-    return {
-        "prompt_length": {
-            "mean": np.mean(prompt_lengths),
-            "max": max(prompt_lengths),
-            "min": min(prompt_lengths),
-        },
-        "reference_length": {
-            "mean": np.mean(ref_lengths),
-            "max": max(ref_lengths),
-            "min": min(ref_lengths),
-        },
-        "total_prompts": len(prompts),
-    }
-
-
-def load_test_prompts(dataset_name: str, n_samples: int) -> list[dict]:
-    """Load test prompts from the specified dataset
-
-    Args:
-        dataset_name: Name of the dataset to load
-        n_samples: Number of samples to load
-
-    Returns:
-        List of prompt dictionaries with original/clean versions
-    """
-    try:
-        records = dataset_loader.get_test_prompts(dataset_name, n_samples)
-        return TextPreprocessor.preprocess_batch(records)
-    except Exception as e:
-        raise ValueError(f"Failed to load prompts from {dataset_name}: {str(e)}")
-
-
-def load_baseline(model_name: str, dataset_name: str) -> dict:
-    """Load baseline hallucination rates for a model/dataset combination
-
-    Args:
-        model_name: Name of the model
-        dataset_name: Name of the dataset
-
-    Returns:
-        Dictionary containing baseline metrics
-    """
-    # Path to baseline results (create if doesn't exist)
-    baseline_dir = os.path.join(settings.data_dir, "baselines")
-    os.makedirs(baseline_dir, exist_ok=True)
-    baseline_file = os.path.join(baseline_dir, f"{model_name}_{dataset_name}.json")
-
-    try:
-        if os.path.exists(baseline_file):
-            with open(baseline_file) as f:
-                return json.load(f)
-
-        # Default baseline if no file exists
-        return {
-            "hallucination_rate": 0.25,  # Default 25% for unknown models
-            "accuracy": 0.70,
-            "fact_score": 0.75,
-        }
-    except Exception as e:
-        raise ValueError(f"Failed to load baseline for {model_name}/{dataset_name}: {str(e)}")
-
-
-def load_model_configs(path: str = "config.yaml") -> dict[str, Any]:
-    with open(path) as f:
-        config = yaml.safe_load(f)
-    return config["models"]
-
-
-def batch_queries(queries: list[str], batch_size: int = 5) -> list[list[str]]:
-    return [queries[i : i + batch_size] for i in range(0, len(queries), batch_size)]
-
-
-def rate_limit_sleep(api_name: str):
-    """Prevent hitting API rate limits"""
-    time.sleep(settings.datasets.rate_limits.get(api_name.lower(), 1.0))
 
 
 class DatasetLoader:
@@ -294,3 +212,94 @@ class TextPreprocessor:
             }
             for r in records
         ]
+
+
+def get_dataset_stats(prompts: list[dict]) -> dict:
+    """Calculate basic statistics about the evaluation dataset"""
+    ref_lengths = [len(p["original_reference"]) for p in prompts]
+    prompt_lengths = [len(p["original_prompt"]) for p in prompts]
+
+    return {
+        "prompt_length": {
+            "mean": np.mean(prompt_lengths),
+            "max": max(prompt_lengths),
+            "min": min(prompt_lengths),
+        },
+        "reference_length": {
+            "mean": np.mean(ref_lengths),
+            "max": max(ref_lengths),
+            "min": min(ref_lengths),
+        },
+        "total_prompts": len(prompts),
+    }
+
+
+def load_test_prompts(
+        dataset_name: str, n_samples: int,
+        dataset_loader: DatasetLoader = DatasetLoader()
+) -> list[dict]:
+    try:
+        records = dataset_loader.get_test_prompts(dataset_name, n_samples)
+        return TextPreprocessor.preprocess_batch(records)
+    except Exception as e:
+        raise ValueError(f"Failed to load prompts from {dataset_name}: {str(e)}")
+
+
+def load_baseline(model_name: str, dataset_name: str) -> dict:
+    # Path to baseline results (create if doesn't exist)
+    baseline_dir = os.path.join(settings.data_dir, "baselines")
+    os.makedirs(baseline_dir, exist_ok=True)
+    baseline_file = os.path.join(baseline_dir, f"{model_name}_{dataset_name}.json")
+
+    try:
+        if os.path.exists(baseline_file):
+            with open(baseline_file) as f:
+                return json.load(f)
+
+        # Default baseline if no file exists
+        return {
+            "hallucination_rate": 0.25,  # Default 25% for unknown models
+            "accuracy": 0.70,
+            "fact_score": 0.75,
+        }
+    except Exception as e:
+        raise ValueError(f"Failed to load baseline for {model_name}/{dataset_name}: {str(e)}")
+
+
+def load_model_configs(path: str = "config.yaml") -> dict[str, Any]:
+    with open(path) as f:
+        config = yaml.safe_load(f)
+    return config["models"]
+
+
+def batch_queries(queries: list[str], batch_size: int = 5) -> list[list[str]]:
+    return [queries[i : i + batch_size] for i in range(0, len(queries), batch_size)]
+
+
+def rate_limit_sleep(api_name: str):
+    """Prevent hitting API rate limits"""
+    time.sleep(settings.datasets.rate_limits.get(api_name.lower(), 1.0))
+
+
+def load_disease_terms():
+    retriever = PubMedRetriever()
+    articles = retriever.search("disease", max_results=10)  # Async call needs await
+    return [article.title for article in articles]  # Example
+
+
+def load_drug_terms():
+    """Load drug terms from a hypothetical source."""
+    try:
+        with open("data/drugs.json") as f:
+            return json.load(f)["drugs"]
+    except FileNotFoundError:
+        return ["aspirin", "ibuprofen", "metformin"]
+
+
+def load_anatomy_terms():
+    """Load anatomy terms from a hypothetical source."""
+    try:
+        with open("data/anatomy.json") as f:
+            return json.load(f)["anatomy"]
+    except FileNotFoundError:
+        return ["heart", "lung", "liver"]

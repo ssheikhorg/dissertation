@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 
-from .clients import ModelClient
+from .clients import ModelClient, ModelNameEnum
 from .config import settings
 from .data import load_baseline, load_test_prompts
 from .evaluators import (
@@ -16,7 +16,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.post("/api/evaluate/medical")
 async def evaluate_medical_model(
-    model_name: str,
+    model_name: ModelNameEnum = ModelNameEnum.GEMINI_PRO,
     dataset: str = "pubmed_qa",
     n_samples: int = 10,
     mitigation: str = None,  # "rag", "lora", "ensemble"
@@ -26,14 +26,14 @@ async def evaluate_medical_model(
     prompts = load_test_prompts(dataset, n_samples)
 
     # Initialize model with selected mitigation
-    client = ModelClient.get_client(model_name, mitigation=mitigation)
+    client = ModelClient.get_client(model_name.value, mitigation=mitigation)
 
     # Evaluate with medical-specific metrics
     evaluator = MedicalModelEvaluator()
     results = evaluator.evaluate(client, prompts)
 
     # Calculate hallucination reduction
-    baseline = load_baseline(model_name, dataset)
+    baseline = load_baseline(model_name.value, dataset)
     reduction = (baseline["hallucination_rate"] - results["hallucination_rate"]) / baseline["hallucination_rate"]
 
     return {

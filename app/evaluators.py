@@ -6,6 +6,7 @@ from sentence_transformers import SentenceTransformer, util
 from transformers import pipeline
 
 from .config import settings
+from .data import DatasetLoader
 
 
 class MetricCalculator:
@@ -194,6 +195,12 @@ class HallucinationEvaluator:
         self.rouge = evaluate.load("rouge")
         self.bleurt = evaluate.load("bleurt", "bleurt-large-512")
 
+        dataset_loader = DatasetLoader()
+        dataset_loader.load_medical_entities()
+        self.diseases = dataset_loader.diseases
+        self.drugs = dataset_loader.drugs
+        self.anatomy = dataset_loader.anatomy
+
     def detect_contradictions(self, source: str, generated: str) -> dict:
         """Detect contradictions between source and generated text using NLI.
 
@@ -296,19 +303,21 @@ class HallucinationEvaluator:
         """Detect fabricated medical entities and relationships"""
         entities = self.ner(generated)
         fabricated = []
-
         for entity in entities:
-            # Check if entity exists in medical knowledge bases
             if entity["entity_group"] in ["DISEASE", "DRUG", "ANATOMY"]:
-                if not self.umls.exists(entity["word"]) and not self.mesh.exists(entity["word"]):
+                term = entity["word"]
+                if (
+                        (entity["entity_group"] == "DISEASE" and term not in self.diseases)
+                        or (entity["entity_group"] == "DRUG" and term not in self.drugs)
+                        or (entity["entity_group"] == "ANATOMY" and term not in self.anatomy)
+                ):
                     fabricated.append(
                         {
-                            "entity": entity["word"],
+                            "entity": term,
                             "type": entity["entity_group"],
                             "confidence": entity["score"],
                         }
                     )
-
         return {
             "fabricated_entities": fabricated,
             "fabrication_score": len(fabricated) / (len(entities) + 1e-6),
