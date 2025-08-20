@@ -381,3 +381,43 @@ function setupVisualizationForm() {
         });
     }
 }
+
+// Handle recent evaluations display
+function handleRecentEvaluations() {
+    const container = document.getElementById('recent-evals-container');
+    if (container) {
+        container.addEventListener('htmx:afterSwap', function(event) {
+            const data = event.detail.xhr.response;
+
+            if (data.error) {
+                container.innerHTML = `<p class="error">${data.error}</p>`;
+                return;
+            }
+
+            if (data.length === 0) {
+                container.innerHTML = '<p>No recent evaluations found</p>';
+                return;
+            }
+
+            let html = '<div class="recent-evals-list">';
+            data.forEach(eval => {
+                html += `
+                    <div class="recent-eval-item">
+                        <strong>${eval.model}</strong> on ${eval.dataset}
+                        <div class="eval-stats">
+                            <span class="hallucination-rate">${(eval.hallucination_rate * 100).toFixed(1)}% hallucinations</span>
+                            <span class="accuracy">${(eval.accuracy * 100).toFixed(1)}% accuracy</span>
+                        </div>
+                        <small>${new Date(eval.timestamp).toLocaleDateString()}</small>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+        });
+    }
+}
+
+// Call this on page load
+document.addEventListener('DOMContentLoaded', handleRecentEvaluations);

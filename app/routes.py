@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+import json
+import os
 from fastapi import APIRouter, Form, HTTPException
 from starlette.templating import Jinja2Templates
 
@@ -18,10 +21,10 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.post("/api/evaluate")
 async def evaluate_model(
-    model_name: str = Form(...),
-    dataset: str = Form("pubmed_qa"),
-    sample_count: int = Form(5),
-    mitigation: str = Form(None),
+        model_name: str = Form(...),
+        dataset: str = Form("pubmed_qa"),
+        sample_count: int = Form(5),
+        mitigation: str = Form(None),
 ):
     """Evaluate a single model with focus on hallucination metrics"""
     try:
@@ -45,8 +48,8 @@ async def evaluate_model(
             else 0
         )
 
-        # Prepare response for HTML dashboard
-        return {
+        # Prepare response data
+        response_data = {
             "model": model_name,
             "dataset": dataset,
             "sample_count": sample_count,
@@ -61,16 +64,28 @@ async def evaluate_model(
             "suggestions": generate_improvement_suggestions(results, baseline),
             "sample_responses": results.get("sample_responses", [])[:3],
         }
+
+        # Save evaluation result to file
+        eval_dir = "evaluations"
+        os.makedirs(eval_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{model_name}_{dataset}_{timestamp}.json"
+        filepath = os.path.join(eval_dir, filename)
+
+        with open(filepath, 'w') as f:
+            json.dump(response_data, f, indent=2)
+
+        return response_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/api/compare")
 async def api_compare_models(
-    model1: str = Form(...),
-    model2: str = Form(...),
-    dataset: str = Form("pubmed_qa"),
-    sample_count: int = Form(5),
+        model1: str = Form(...),
+        model2: str = Form(...),
+        dataset: str = Form("pubmed_qa"),
+        sample_count: int = Form(5),
 ):
     """Compare two models with focus on hallucination metrics"""
     try:
@@ -102,10 +117,19 @@ async def api_compare_models(
             },
         }
 
+        # Save comparison result to file
+        eval_dir = "evaluations"
+        os.makedirs(eval_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"comparison_{model1}_vs_{model2}_{dataset}_{timestamp}.json"
+        filepath = os.path.join(eval_dir, filename)
+
+        with open(filepath, 'w') as f:
+            json.dump(comparison_data, f, indent=2)
+
         return comparison_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
-
 
 @router.get("/api/visualize")
 async def generate_visualization(
@@ -139,5 +163,40 @@ async def generate_visualization(
             return {"error": "Unsupported visualization type"}
 
         return chart_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/api/recent-evaluations")
+async def get_recent_evaluations():
+    """Get recently completed evaluations for the dashboard"""
+    try:
+        eval_dir = "evaluations"
+        os.makedirs(eval_dir, exist_ok=True)
+
+        recent_evaluations = []
+
+        # Look for evaluation files from last 7 days
+        for filename in os.listdir(eval_dir):
+            if filename.endswith('.json'):
+                filepath = os.path.join(eval_dir, filename)
+                file_time = datetime.fromtimestamp(os.path.getmtime(filepath))
+
+                if datetime.now() - file_time < timedelta(days=7):
+                    with open(filepath, 'r') as f:
+                        eval_data = json.load(f)
+                        recent_evaluations.append({
+                            "model": eval_data.get("model", "Unknown"),
+                            "dataset": eval_data.get("dataset", "Unknown"),
+                            "timestamp": file_time.isoformat(),
+                            "hallucination_rate": eval_data.get("metrics", {}).get("hallucination_rate", 0),
+                            "accuracy": eval_data.get("metrics", {}).get("accuracy", 0)
+                        })
+
+        # Sort by most recent
+        recent_evaluations.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return recent_evaluations[:5]  # Return top 5 most recent
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
