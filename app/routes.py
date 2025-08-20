@@ -1,19 +1,19 @@
-from datetime import datetime, timedelta
 import json
 import os
-from fastapi import APIRouter, Form, HTTPException
-from starlette.templating import Jinja2Templates
+from datetime import datetime, timedelta
 
-from .clients import ModelClient, generate_visualization_data
-from .config import settings
-from .data import load_baseline, load_test_prompts
-from .evaluators import (
+from clients import ModelClient, generate_visualization_data
+from config import settings
+from data import load_baseline, load_test_prompts
+from evaluators import (
     MedicalModelEvaluator,
     generate_improvement_suggestions,
     prepare_bar_chart_data,
     prepare_radar_data,
     prepare_scatter_data,
 )
+from fastapi import APIRouter, Form, HTTPException
+from starlette.templating import Jinja2Templates
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -21,10 +21,10 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.post("/api/evaluate")
 async def evaluate_model(
-        model_name: str = Form(...),
-        dataset: str = Form("pubmed_qa"),
-        sample_count: int = Form(5),
-        mitigation: str = Form(None),
+    model_name: str = Form(...),
+    dataset: str = Form("pubmed_qa"),
+    sample_count: int = Form(5),
+    mitigation: str = Form(None),
 ):
     """Evaluate a single model with focus on hallucination metrics"""
     try:
@@ -72,7 +72,7 @@ async def evaluate_model(
         filename = f"{model_name}_{dataset}_{timestamp}.json"
         filepath = os.path.join(eval_dir, filename)
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(response_data, f, indent=2)
 
         return response_data
@@ -82,10 +82,10 @@ async def evaluate_model(
 
 @router.post("/api/compare")
 async def api_compare_models(
-        model1: str = Form(...),
-        model2: str = Form(...),
-        dataset: str = Form("pubmed_qa"),
-        sample_count: int = Form(5),
+    model1: str = Form(...),
+    model2: str = Form(...),
+    dataset: str = Form("pubmed_qa"),
+    sample_count: int = Form(5),
 ):
     """Compare two models with focus on hallucination metrics"""
     try:
@@ -124,12 +124,13 @@ async def api_compare_models(
         filename = f"comparison_{model1}_vs_{model2}_{dataset}_{timestamp}.json"
         filepath = os.path.join(eval_dir, filename)
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(comparison_data, f, indent=2)
 
         return comparison_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @router.get("/api/visualize")
 async def generate_visualization(
@@ -178,20 +179,22 @@ async def get_recent_evaluations():
 
         # Look for evaluation files from last 7 days
         for filename in os.listdir(eval_dir):
-            if filename.endswith('.json'):
+            if filename.endswith(".json"):
                 filepath = os.path.join(eval_dir, filename)
                 file_time = datetime.fromtimestamp(os.path.getmtime(filepath))
 
                 if datetime.now() - file_time < timedelta(days=7):
-                    with open(filepath, 'r') as f:
+                    with open(filepath) as f:
                         eval_data = json.load(f)
-                        recent_evaluations.append({
-                            "model": eval_data.get("model", "Unknown"),
-                            "dataset": eval_data.get("dataset", "Unknown"),
-                            "timestamp": file_time.isoformat(),
-                            "hallucination_rate": eval_data.get("metrics", {}).get("hallucination_rate", 0),
-                            "accuracy": eval_data.get("metrics", {}).get("accuracy", 0)
-                        })
+                        recent_evaluations.append(
+                            {
+                                "model": eval_data.get("model", "Unknown"),
+                                "dataset": eval_data.get("dataset", "Unknown"),
+                                "timestamp": file_time.isoformat(),
+                                "hallucination_rate": eval_data.get("metrics", {}).get("hallucination_rate", 0),
+                                "accuracy": eval_data.get("metrics", {}).get("accuracy", 0),
+                            }
+                        )
 
         # Sort by most recent
         recent_evaluations.sort(key=lambda x: x["timestamp"], reverse=True)

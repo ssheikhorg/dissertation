@@ -10,10 +10,9 @@ import httpx
 import numpy as np
 import pandas as pd
 import yaml
+from config import settings
 from datasets import load_dataset
 from pydantic import BaseModel
-
-from .config import settings
 
 
 class PubMedArticle(BaseModel):
@@ -74,12 +73,17 @@ class DatasetLoader:
     def get_test_prompts(self, name: str, n_samples: int = 100) -> list[dict]:
         df = self.load_dataset(name)
         samples = df.sample(min(n_samples, len(df)))
-        return samples[
-            [
-                self.benchmarks[name]["prompt_col"],
-                self.benchmarks[name]["reference_col"],
-            ]
-        ].to_dict("records")
+
+        # Return in a consistent format
+        return [
+            {
+                "prompt": row[self.benchmarks[name]["prompt_col"]],
+                "reference": row[self.benchmarks[name]["reference_col"]],
+                "question": row.get(self.benchmarks[name]["prompt_col"], ""),  # Keep original field names too
+                "long_answer": row.get(self.benchmarks[name]["reference_col"], ""),
+            }
+            for _, row in samples.iterrows()
+        ]
 
     def load_medical_entities(self):
         """Load common medical entities to verify against"""
@@ -197,6 +201,8 @@ class TextPreprocessor:
     @staticmethod
     def clean_text(text: str) -> str:
         """Basic text normalization"""
+        if not text:
+            return ""
         text = text.lower().strip()
         text = re.sub(f"[{string.punctuation}]", "", text)
         return re.sub(r"\s+", " ", text)
@@ -205,10 +211,10 @@ class TextPreprocessor:
     def preprocess_batch(records: list[dict]) -> list[dict]:
         return [
             {
-                "original_prompt": r["prompt"],
-                "clean_prompt": TextPreprocessor.clean_text(r["prompt"]),
-                "original_reference": r.get("reference", ""),
-                "clean_reference": TextPreprocessor.clean_text(r.get("reference", "")),
+                "original_prompt": r.get("question", ""),  # Use 'question' as prompt
+                "clean_prompt": TextPreprocessor.clean_text(r.get("question", "")),
+                "original_reference": r.get("long_answer", r.get("reference", "")),  # Use 'long_answer' as reference
+                "clean_reference": TextPreprocessor.clean_text(r.get("long_answer", r.get("reference", ""))),
             }
             for r in records
         ]

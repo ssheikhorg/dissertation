@@ -9,13 +9,12 @@ import pandas as pd
 import seaborn as sns
 import torch
 from anthropic import Anthropic
+from config import settings
+from data import PubMedRetriever, load_test_prompts
+from evaluators import ModelEvaluator, compare_models
 from jinja2 import Environment, FileSystemLoader
 from lime.lime_text import LimeTextExplainer
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
-from .config import settings
-from .data import PubMedRetriever, load_test_prompts
-from .evaluators import ModelEvaluator, compare_models
 
 
 class ModelNameEnum(Enum):
@@ -211,7 +210,7 @@ async def generate_visualization_data(
     bias_data = []
 
     for dataset in datasets:
-        prompts = load_test_prompts(dataset_name=dataset, n_samples=n_samples)
+        prompts = await load_test_prompts(dataset_name=dataset, n_samples=n_samples)
         results = await compare_models(model_names, prompts)  # Async call
         for model, result in results["models"].items():
             if result.get("metrics"):

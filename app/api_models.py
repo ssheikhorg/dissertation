@@ -5,15 +5,14 @@ import httpx
 import openai
 import torch
 from anthropic import Anthropic
+from clients import ModelClient
+from config import settings
+from data import PubMedRetriever
 from lime.lime_text import LimeTextExplainer
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
 )
-
-from .clients import ModelClient
-from .config import settings
-from .data import PubMedRetriever
 
 
 class HuggingFaceModel:

@@ -5,15 +5,14 @@ import evaluate
 import numpy as np
 import pandas as pd
 import spacy
+from config import settings
+from data import DatasetLoader, get_dataset_stats
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model
 from scipy.stats import stats
 from sentence_transformers import SentenceTransformer, util
 from sklearn.cluster import DBSCAN
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, pipeline
-
-from .config import settings
-from .data import DatasetLoader, get_dataset_stats
 
 
 class BiasAnalyzer:

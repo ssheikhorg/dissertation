@@ -1,5 +1,3 @@
-# config.py
-
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -37,7 +35,7 @@ class Settings(BaseSettings):
     pubmed_api_key: str | None = None
 
     class Config:
-        env_file = ".env"
+        env_file = "app/.env"
         env_nested_delimiter = "__"
         extra = "ignore"  # Ignore extra env variables
 
