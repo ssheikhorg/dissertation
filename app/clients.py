@@ -165,7 +165,7 @@ class GeminiClient(ModelClient):
 class HuggingFaceModel(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.device = "cuda" if torch.cuda.is_available() and settings.evaluation.use_gpu else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() and settings.use_gpu else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
