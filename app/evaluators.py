@@ -1,3 +1,4 @@
+
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -10,9 +11,64 @@ from data import DatasetLoader, get_dataset_stats
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model
 from scipy.stats import stats
-from sentence_transformers import SentenceTransformer, util
+import torch
 from sklearn.cluster import DBSCAN
-from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, pipeline
+from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments, pipeline
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+class EmbeddingModel:
+    def __init__(self, model_name="sentence-transformers/all-mpnet-base-v2", device=None):
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name).to(self.device)
+        self.model.eval()
+
+    def encode(self, texts, convert_to_tensor=False, **kwargs):
+        """Encode texts into embeddings"""
+        if isinstance(texts, str):
+            texts = [texts]
+
+        # Tokenize
+        inputs = self.tokenizer(
+            texts,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+            max_length=512
+        ).to(self.device)
+
+        # Generate embeddings
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            # Use mean pooling to get sentence embeddings
+            embeddings = outputs.last_hidden_state.mean(dim=1)
+
+        if convert_to_tensor:
+            return embeddings
+        else:
+            return embeddings.cpu().numpy()
+
+    def cosine_similarity(self, embeddings1, embeddings2):
+        """Compute cosine similarity between embeddings"""
+        if isinstance(embeddings1, np.ndarray):
+            embeddings1 = torch.from_numpy(embeddings1)
+        if isinstance(embeddings2, np.ndarray):
+            embeddings2 = torch.from_numpy(embeddings2)
+
+        # Ensure both are tensors
+        if not isinstance(embeddings1, torch.Tensor):
+            embeddings1 = torch.tensor(embeddings1)
+        if not isinstance(embeddings2, torch.Tensor):
+            embeddings2 = torch.tensor(embeddings2)
+
+        # Normalize embeddings
+        embeddings1 = torch.nn.functional.normalize(embeddings1, p=2, dim=1)
+        embeddings2 = torch.nn.functional.normalize(embeddings2, p=2, dim=1)
+
+        # Compute cosine similarity
+        similarity = torch.mm(embeddings1, embeddings2.transpose(0, 1))
+        return similarity
 
 
 class BiasAnalyzer:
@@ -69,6 +125,14 @@ class MetricCalculator:
             "exact_match": self._calculate_exact_match(references, predictions),
         }
 
+    def _calculate_exact_match(self, references: list[str], predictions: list[str]) -> float:
+        """Calculate exact match score"""
+        matches = 0
+        for ref, pred in zip(references, predictions):
+            if ref.strip().lower() == pred.strip().lower():
+                matches += 1
+        return matches / len(references) if references else 0.0
+
 
 class ConsistencyEvaluator:
     def __init__(self, config: dict):
@@ -78,9 +142,7 @@ class ConsistencyEvaluator:
             config: Evaluation configuration dictionary
         """
         self.config = config
-        self.similarity_model = SentenceTransformer(
-            "all-mpnet-base-v2", device="cuda" if config.get("use_gpu", True) else "cpu"
-        )
+        self.similarity_model = EmbeddingModel("sentence-transformers/all-mpnet-base-v2")
 
         self.entailment_model = pipeline(
             "text-classification",
@@ -89,20 +151,12 @@ class ConsistencyEvaluator:
         )
 
     def response_consistency(self, responses: list[str]) -> dict:
-        """Evaluate consistency across multiple responses to similar prompts.
-
-        Args:
-            responses: List of model responses to evaluate
-
-        Returns:
-            Dictionary with consistency metrics
-        """
         if len(responses) < 2:
             return {"consistency_score": 1.0, "variance": 0.0}
 
         # Compute pairwise semantic similarities
         embeddings = self.similarity_model.encode(responses, convert_to_tensor=True)
-        similarity_matrix = util.cos_sim(embeddings, embeddings)
+        similarity_matrix = self.similarity_model.cosine_similarity(embeddings, embeddings).cpu().numpy()
 
         # Get upper triangle (excluding diagonal)
         upper_triangle = similarity_matrix[np.triu_indices(len(responses), 1)]
@@ -203,10 +257,7 @@ class HallucinationEvaluator:
             model=settings.evaluation.ner_model,
             device=0 if settings.evaluation.use_gpu else -1,
         )
-        self.similarity_model = SentenceTransformer(
-            settings.evaluation.similarity_model,
-            device="cuda" if settings.evaluation.use_gpu else "cpu",
-        )
+        self.similarity_model = EmbeddingModel("sentence-transformers/all-mpnet-base-v2")
 
         self.entailment_id = 0  # MNLI entailment label index
         self.contradiction_id = 2  # MNLI contradiction label index
@@ -257,7 +308,10 @@ class HallucinationEvaluator:
         gen_embedding = self.similarity_model.encode(generated, convert_to_tensor=True)
 
         # Compute cosine similarity
-        cos_sim = util.cos_sim(source_embedding, gen_embedding).item()
+        cos_sim = self.similarity_model.cosine_similarity(
+            source_embedding.unsqueeze(0),
+            gen_embedding.unsqueeze(0)
+        ).item()
 
         # Compute ROUGE scores
         rouge_scores = self.rouge.compute(predictions=[generated], references=[source])

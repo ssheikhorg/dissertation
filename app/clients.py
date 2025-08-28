@@ -166,10 +166,18 @@ class HuggingFaceModel(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
         self.device = "cuda" if torch.cuda.is_available() and settings.use_gpu else "cpu"
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+
+        # For MPS, use float32 instead of float16
+        torch_dtype = torch.float32 if self.device == "mps" else torch.float16
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
         self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name,
-            torch_dtype=torch.float16 if "cuda" in self.device else torch.float32,
+            model_name,
+            torch_dtype=torch_dtype,
+            device_map="auto" if self.device != "mps" else None,
         ).to(self.device)
 
     async def generate(self, prompt: str, **kwargs) -> str:

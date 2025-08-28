@@ -16,7 +16,7 @@ from fastapi import APIRouter, Form, HTTPException
 from starlette.templating import Jinja2Templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory="templates")
 
 
 @router.post("/api/evaluate")

@@ -2,6 +2,10 @@ from typing import Dict, Any
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
+import torch
+import os
+
+
 
 class ModelConfig(BaseSettings):
     # API Keys (all optional with None default)
@@ -74,3 +78,41 @@ class ModelConfig(BaseSettings):
 
 
 settings = ModelConfig()
+
+
+def setup_device():
+    """Configure PyTorch device settings for macOS compatibility"""
+    # Set environment variables to prevent MPS issues
+    os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+    os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
+
+    # Determine device
+    if settings.force_cpu:
+        device = "cpu"
+        torch.set_num_threads(settings.cpu_threads)
+    elif torch.cuda.is_available() and settings.use_gpu:
+        device = "cuda"
+    elif torch.backends.mps.is_available() and settings.use_mps:
+        try:
+            # Test MPS availability
+            test_tensor = torch.ones(1, device="mps")
+            device = "mps"
+            # Set thread limits for MPS
+            torch.set_num_threads(min(settings.mps_threads, 4))  # Limit threads for MPS
+            print(f"MPS device initialized successfully")
+        except Exception as e:
+            print(f"MPS unavailable, falling back to CPU: {e}")
+            device = "cpu"
+            torch.set_num_threads(settings.cpu_threads)
+    else:
+        device = "cpu"
+        torch.set_num_threads(settings.cpu_threads)
+
+    print(f"Using device: {device}")
+    return device
+
+
+def cleanup_device():
+    """Clean up device resources"""
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
