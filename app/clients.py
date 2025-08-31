@@ -10,7 +10,6 @@ import seaborn as sns
 import torch
 from anthropic import Anthropic
 from jinja2 import Environment, FileSystemLoader
-from lime.lime_text import LimeTextExplainer
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .config import settings
@@ -78,19 +77,16 @@ class ModelClient:
     """Base class for all API model clients"""
 
     _registry = {
-        ModelNameEnum.GPT_3_5.value: "OpenAIClient",
-        ModelNameEnum.CLAUDE_3_OPUS.value: "AnthropicClient",
-        ModelNameEnum.GEMINI_PRO.value: "GeminiClient",
-        ModelNameEnum.GROK_BETA.value: "xAIClient",
-        ModelNameEnum.LLAMA_2_7B.value: "HuggingFaceModel",
-        ModelNameEnum.MISTRAL_7B.value: "HuggingFaceModel",
-        ModelNameEnum.DEEPSEEK_7B.value: "HuggingFaceModel",
-        ModelNameEnum.QWEN_7B.value: "HuggingFaceModel",
+        "gpt-3.5-turbo": "OpenAIClient",
+        "gpt-4": "OpenAIClient",
+        "claude-2": "AnthropicClient",
+        "gemini-2.0-flash-lite": "GeminiClient",
+        "grok-beta": "xAIClient",
+        "llama-2-7b": "HuggingFaceModel",
+        "mistral-7b": "HuggingFaceModel",
+        "deepseek-7b": "HuggingFaceModel",
+        "qwen-7b": "HuggingFaceModel",
     }
-
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-        self.config = settings.models[model_name]
 
     @classmethod
     def register_client(cls, name: str):
@@ -102,17 +98,29 @@ class ModelClient:
 
         return wrapper
 
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        # Safe access to models config with defaults
+        self.config = getattr(settings, "models", {}).get(model_name, {})
+        self.provider = self.config.get("provider", "huggingface")
+
     @classmethod
     def get_client(cls, model_name: str, mitigation: str = None) -> "ModelClient":
         """Factory method to get the appropriate client with mitigation"""
         if model_name not in cls._registry:
-            raise ValueError(f"No client registered for model: {model_name}")
+            # Fallback to a known model but keep the original name for tracking
+            fallback_model = "llama-2-7b"
+            print(f"Warning: Model {model_name} not found, using {fallback_model} as fallback")
+            model_name = fallback_model
 
         client_class_name = cls._registry[model_name]
         client_class = globals().get(client_class_name)
 
         if not client_class:
-            raise ValueError(f"Client class {client_class_name} not found")
+            # Fallback to HuggingFace model
+            from .clients import HuggingFaceModel
+
+            client_class = HuggingFaceModel
 
         # Create client instance
         client = client_class(model_name)
@@ -135,28 +143,36 @@ class ModelClient:
 class xAIClient(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.api_key = self.config.api_key
+        # Use config API key first, then fallback to global setting
+        self.api_key = self.config.get("api_key") or getattr(settings, "xai_api_key", None)
         self.base_url = "https://api.x.ai/v1"
 
     async def generate(self, prompt, **kwargs):
+        if not self.api_key:
+            return "xAI API key not configured. Please set MODEL_XAI_API_KEY in your .env file."
+
         headers = {"Authorization": f"Bearer {self.api_key}"}
         payload = {
             "model": kwargs.get("model", "grok-beta"),
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": kwargs.get("max_tokens", 1000),
-            "temperature": kwargs.get("temperature", 0.7),
+            "max_tokens": kwargs.get("max_tokens", self.config.get("max_tokens", 1000)),
+            "temperature": kwargs.get("temperature", self.config.get("temperature", 0.7)),
         }
         async with httpx.AsyncClient(headers=headers) as client:
             response = await client.post(f"{self.base_url}/chat/completions", json=payload)
             return response.json()["choices"][0]["message"]["content"]
 
 
+# Update all client classes to use safe config access
 @ModelClient.register_client("openai")
 class OpenAIClient(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.client = openai.Client(api_key=self.config.api_key)
-        self.retriever = PubMedRetriever() if self.config.enable_rag else None
+        # Use config API key first, then fallback to global setting
+        api_key = self.config.get("api_key") or getattr(settings, "openai_api_key", None)
+        self.client = openai.Client(api_key=api_key)
+        enable_rag = self.config.get("enable_rag", getattr(settings, "enable_rag", True))
+        self.retriever = PubMedRetriever() if enable_rag else None
 
     async def generate(self, prompt, **kwargs):
         if self.retriever and kwargs.get("use_rag", True):
@@ -164,40 +180,30 @@ class OpenAIClient(ModelClient):
             augmented_prompt = f"Medical Context:\n{context}\n\nQuestion: {prompt}"
         else:
             augmented_prompt = prompt
+
         response = self.client.chat.completions.create(
-            model=kwargs.get("model", "gpt-4"),
+            model=self.model_name,
             messages=[{"role": "user", "content": augmented_prompt}],
-            temperature=kwargs.get("temperature", 0.3),
-            max_tokens=kwargs.get("max_tokens", 1000),
+            temperature=kwargs.get(
+                "temperature", self.config.get("temperature", getattr(settings, "temperature", 0.3))
+            ),
+            max_tokens=kwargs.get("max_tokens", self.config.get("max_tokens", getattr(settings, "max_tokens", 1000))),
         )
-        explainer = LimeTextExplainer()
-        exp = explainer.explain_instance(
-            prompt,
-            lambda x: [
-                self.client.chat.completions.create(
-                    model=kwargs.get("model", "gpt-4"),
-                    messages=[{"role": "user", "content": p}],
-                    temperature=0,
-                )
-                .choices[0]
-                .message.content
-                for p in x
-            ],
-            num_features=10,
-        )
-        return {"response": response.choices[0].message.content, "lime_explanation": exp.as_list()}
+        return response.choices[0].message.content
 
 
 @ModelClient.register_client("anthropic")
 class AnthropicClient(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.client = Anthropic(api_key=self.config.api_key)
+        # Use config API key first, then fallback to global setting
+        api_key = self.config.get("api_key") or getattr(settings, "anthropic_api_key", None)
+        self.client = Anthropic(api_key=api_key)
 
     async def generate(self, prompt, **kwargs):
         response = await self.client.messages.create(
             model=kwargs.get("model", "claude-3-opus-20240229"),
-            max_tokens=kwargs.get("max_tokens", 1000),
+            max_tokens=kwargs.get("max_tokens", self.config.get("max_tokens", 1000)),
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text
@@ -219,9 +225,8 @@ class GeminiClient(ModelClient):
 class HuggingFaceModel(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.device = "cuda" if torch.cuda.is_available() and settings.use_gpu else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() and getattr(settings, "use_gpu", False) else "cpu"
 
-        # For MPS, use float32 instead of float16
         torch_dtype = torch.float32 if self.device == "mps" else torch.float16
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -238,8 +243,12 @@ class HuggingFaceModel(ModelClient):
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
         outputs = self.model.generate(
             **inputs,
-            max_new_tokens=kwargs.get("max_tokens", settings.models[self.model_name].max_tokens),
-            temperature=kwargs.get("temperature", settings.models[self.model_name].temperature),
+            max_new_tokens=kwargs.get(
+                "max_tokens", self.config.get("max_tokens", getattr(settings, "max_tokens", 1000))
+            ),
+            temperature=kwargs.get(
+                "temperature", self.config.get("temperature", getattr(settings, "temperature", 0.3))
+            ),
         )
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 

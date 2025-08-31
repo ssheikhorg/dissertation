@@ -25,6 +25,7 @@ seaborn>=0.13.2
 spacy>=3.8.7
 tqdm>=4.67.1
 transformers>=4.55.0
-
+tensorflow>=2.20.0
 ruff>=0.12.8
 uvicorn>=0.35.0
+sentencepiece>=0.2.1

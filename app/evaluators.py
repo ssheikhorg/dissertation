@@ -1,5 +1,3 @@
-import os
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import evaluate
@@ -240,18 +238,18 @@ class HallucinationEvaluator:
         self.nlp = spacy.load("en_core_web_sm")
         self.nli_model = pipeline(
             "text-classification",
-            model=settings.evaluation.entailment_model,
-            device=0 if settings.evaluation.use_gpu else -1,
+            model=settings.entailment_model,
+            device=0 if settings.use_gpu else -1,
         )
         self.medical_nli = pipeline(
             "text-classification",
-            model=settings.evaluation.medical_nli_model,
-            device=0 if settings.evaluation.use_gpu else -1,
+            model=settings.medical_nli_model,
+            device=0 if settings.use_gpu else -1,
         )
         self.ner = pipeline(
             "ner",
-            model=settings.evaluation.ner_model,
-            device=0 if settings.evaluation.use_gpu else -1,
+            model=settings.ner_model,
+            device=0 if settings.use_gpu else -1,
         )
         self.similarity_model = EmbeddingModel("sentence-transformers/all-mpnet-base-v2")
 
@@ -460,7 +458,7 @@ class MedicalModelEvaluator:
         """Initialize medical-specific evaluator with healthcare-focused metrics"""
         self.hallucination_eval = HallucinationEvaluator()
         self.metric_calc = MetricCalculator()
-        self.consistency_eval = ConsistencyEvaluator(settings.evaluation)
+        self.consistency_eval = ConsistencyEvaluator(settings)
 
     def evaluate(self, model_client, prompts: list[dict]) -> dict:
         """Evaluate model performance on medical prompts

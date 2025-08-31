@@ -190,6 +190,7 @@ async def get_recent_evaluations():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
