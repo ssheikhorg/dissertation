@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Evaluation Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="/static/index.css" rel="stylesheet">
+</head>
+<body>
+    <nav>
+        <a href="#" onclick="showPage('home')">Home</a>
+        <a href="#" onclick="showPage('evaluate')">Single Model Evaluation</a>
+        <a href="#" onclick="showPage('compare')">Model Comparison</a>
+        <a href="#" onclick="showPage('visualize')">Visualizations</a>
+    </nav>
+    <main>
+        <!-- Home Page -->
+        <div id="home-page" class="page active">
+            <div class="hero">
+                <h1>Model Evaluation Dashboard</h1>
+                <p>Compare and evaluate different LLM models with comprehensive metrics</p>
+            </div>
+
+            <div class="features">
+                <div class="feature-card">
+                    <a href="#" onclick="showPage('evaluate')">
+                        <h2>Single Model Evaluation</h2>
+                        <p>Test individual model performance with detailed metrics</p>
+                    </a>
+                </div>
+
+                <div class="feature-card">
+                    <a href="#" onclick="showPage('compare')">
+                        <h2>Model Comparison</h2>
+                        <p>Compare multiple models side-by-side</p>
+                    </a>
+                </div>
+
+                <div class="feature-card">
+                    <a href="#" onclick="showPage('visualize')">
+                        <h2>Visualizations</h2>
+                        <p>Interactive charts and analysis</p>
+                    </a>
+                </div>
+            </div>
+
+            <div class="recent-evaluations">
+                <h2>Recent Evaluations</h2>
+                <div id="recent-evals-container" hx-get="/api/recent-evaluations" hx-trigger="load">
+                    <p>Loading recent evaluations...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Evaluation Page -->
+        <div id="evaluate-page" class="page">
+            <div class="evaluation-container">
+                <h1>Model Evaluation</h1>
+
+                <form>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label for="model-select">Model:</label>
+                            <select id="model-select" name="model_name">
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                <option value="claude-2">Claude 2</option>
+                                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                                <option value="grok-beta">Grok Beta</option>
+                                <option value="llama-2-7b">LLaMA 2 (7B)</option>
+                                <option value="mistral-7b">Mistral 7B</option>
+                                <option value="qwen-7b">Qwen 7B</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="dataset-select-eval">Dataset:</label>
+                            <select id="dataset-select-eval" name="dataset">
+                                <option value="pubmed_qa">PubMed QA</option>
+                                <option value="med_qa">Med QA</option>
+                                <option value="truthful_qa">Truthful QA</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="sample-count-eval">Sample Count:</label>
+                            <input type="range" id="sample-count-eval" name="sample_count" min="1" max="20" value="5">
+                            <span id="sample-count-value-eval">5</span>
+                        </div>
+
+                        <button
+                            hx-post="/api/evaluate"
+                            hx-include="[name]"
+                            hx-target="#results-eval"
+                            hx-indicator=".loading-eval"
+                            class="primary-button">
+                            Run Evaluation
+                        </button>
+                    </div>
+                </form>
+
+                <div class="loading loading-eval">
+                    <div class="spinner"></div>
+                    <p>Evaluating model...</p>
+                </div>
+
+                <div id="results-eval"></div>
+            </div>
+        </div>
+
+        <!-- Comparison Page -->
+        <div id="compare-page" class="page">
+            <div class="comparison-container">
+                <h1>Model Comparison</h1>
+
+                <form>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Models to Compare:</label>
+                            <div class="model-selection">
+                                <select id="model1-select" name="model1">
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                    <option value="gpt-4">GPT-4</option>
+                                    <option value="claude-2">Claude 2</option>
+                                    <option value="llama-2-7b">LLaMA 2 (7B)</option>
+                                </select>
+                                <span>vs</span>
+                                <select id="model2-select" name="model2">
+                                    <option value="gpt-4">GPT-4</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                    <option value="claude-2">Claude 2</option>
+                                    <option value="llama-2-7b">LLaMA 2 (7B)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="dataset-select-comp">Dataset:</label>
+                            <select id="dataset-select-comp" name="dataset">
+                                <option value="pubmed_qa">PubMed QA</option>
+                                <option value="med_qa">Med QA</option>
+                                <option value="truthful_qa">Truthful QA</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="sample-count-comp">Sample Count:</label>
+                            <input type="range" id="sample-count-comp" name="sample_count" min="1" max="20" value="5">
+                            <span id="sample-count-value-comp">5</span>
+                        </div>
+
+                        <button
+                            hx-post="/api/compare"
+                            hx-include="[name]"
+                            hx-target="#results-comp"
+                            hx-indicator=".loading-comp"
+                            class="primary-button">
+                            Compare Models
+                        </button>
+                    </div>
+                </form>
+
+                <div class="loading loading-comp">
+                    <div class="spinner"></div>
+                    <p>Comparing models...</p>
+                </div>
+
+                <div id="results-comp"></div>
+            </div>
+        </div>
+
+        <!-- Visualization Page -->
+        <div id="visualize-page" class="page">
+            <div class="visualization-container">
+                <h1>Model Evaluation Visualizations</h1>
+
+                <form>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label for="visualization-type">Visualization Type:</label>
+                            <select id="visualization-type" name="visualization_type">
+                                <option value="bar">Bar Chart</option>
+                                <option value="radar">Radar Chart</option>
+                                <option value="scatter">Scatter Plot</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="metric-select">Metric:</label>
+                            <select id="metric-select" name="metric">
+                                <option value="hallucination_rate">Hallucination Rate</option>
+                                <option value="accuracy">Accuracy</option>
+                                <option value="fact_score">Fact Score</option>
+                                <option value="toxicity_score">Toxicity Score</option>
+                            </select>
+                        </div>
+
+                        <button
+                            hx-get="/api/visualize"
+                            hx-include="[name]"
+                            hx-target="#visualization-container"
+                            hx-indicator=".loading-viz"
+                            class="primary-button">
+                            Generate Visualization
+                        </button>
+                    </div>
+                </form>
+
+                <div class="loading loading-viz">
+                    <div class="spinner"></div>
+                    <p>Generating visualization...</p>
+                </div>
+
+                <div id="visualization-container" class="chart-container">
+                    <!-- Visualization will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>This Model Evaluation Dashboard was developed by <strong>Sheikh Shahin Shapon</strong> as part of his MSc Dissertation on <em>"Hallucination Detection in Large Language Models for Medical Applications"</em></p>
+            <p>© 2024 Sheikh Shahin Shapon - All rights reserved</p>
+        </div>
+    </footer>
+
+    <script>
+        // Page navigation function
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+
+            // Show selected page
+            document.getElementById(`${pageId}-page`).classList.add('active');
+        }
+
+        // Update sample count displays
+        document.addEventListener('DOMContentLoaded', function() {
+            const evalSlider = document.getElementById('sample-count-eval');
+            const evalValue = document.getElementById('sample-count-value-eval');
+            const compSlider = document.getElementById('sample-count-comp');
+            const compValue = document.getElementById('sample-count-value-comp');
+
+            if (evalSlider && evalValue) {
+                evalSlider.addEventListener('input', () => {
+                    evalValue.textContent = evalSlider.value;
+                });
+            }
+
+            if (compSlider && compValue) {
+                compSlider.addEventListener('input', () => {
+                    compValue.textContent = compSlider.value;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

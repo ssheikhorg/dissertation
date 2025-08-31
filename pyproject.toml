@@ -1,0 +1,12 @@
+[project]
+    name = "dissertation-project-fastapi"
+    authors = [
+        { name = "Shahin Shapon", email = "ssheikhorg@hotmail.com" },
+    ]
+    version = "0.1.0"
+    description = "MSc dissertation project for implementing a FastAPI application with Uvicorn"
+    readme = "README.md"
+    requires-python = ">=3.12"
+
+[tool.ruff]
+extend = ".ruff.toml"
