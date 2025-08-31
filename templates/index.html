@@ -228,7 +228,7 @@
     </footer>
 
     <script>
-        // Page navigation function
+        // Update page navigation to handle URL changes
         function showPage(pageId) {
             // Hide all pages
             document.querySelectorAll('.page').forEach(page => {
@@ -237,10 +237,26 @@
 
             // Show selected page
             document.getElementById(`${pageId}-page`).classList.add('active');
+
+            // Update URL without reloading
+            const url = pageId === 'home' ? '/' : `/${pageId}`;
+            window.history.pushState({}, '', url);
         }
 
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function (event) {
+            const path = window.location.pathname;
+            let pageId = 'home';
+
+            if (path === '/evaluate') pageId = 'evaluate';
+            else if (path === '/compare') pageId = 'compare';
+            else if (path === '/visualize') pageId = 'visualize';
+
+            showPage(pageId);
+        });
+
         // Update sample count displays
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const evalSlider = document.getElementById('sample-count-eval');
             const evalValue = document.getElementById('sample-count-value-eval');
             const compSlider = document.getElementById('sample-count-comp');
@@ -257,6 +273,16 @@
                     compValue.textContent = compSlider.value;
                 });
             }
+
+            // Set initial page based on URL
+            const path = window.location.pathname;
+            let pageId = 'home';
+
+            if (path === '/evaluate') pageId = 'evaluate';
+            else if (path === '/compare') pageId = 'compare';
+            else if (path === '/visualize') pageId = 'visualize';
+
+            showPage(pageId);
         });
     </script>
 </body>

@@ -1,9 +1,7 @@
-from fastapi import FastAPI, Request
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 import os
 from app.routes import router
-from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
@@ -19,14 +17,17 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(router)
 
 
-templates = Jinja2Templates(directory="templates")
+if __name__ == "__main__":
+    import uvicorn
 
+    # Respect an env toggle for reload, but force it off under PyCharm on Windows to avoid multiprocessing issues
+    reload_flag = os.environ.get("UVICORN_RELOAD", "").lower() in {"1", "true", "yes"}
+    if os.name == "nt" and os.environ.get("PYCHARM_HOSTED"):
+        reload_flag = False
 
-@router.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "version": "1.0.0"}
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=reload_flag,
+    )

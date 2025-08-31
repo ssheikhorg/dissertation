@@ -2,8 +2,9 @@ import json
 import os
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Form, HTTPException
-from starlette.templating import Jinja2Templates
+from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from .clients import ModelClient, generate_visualization_data
 from .data import load_baseline, load_test_prompts
@@ -94,7 +95,7 @@ async def api_compare_models(
         prompts = load_test_prompts(dataset, min(sample_count, 100))
 
         # Evaluate both models using the compare_models function
-        comparison_results = compare_models([model1, model2], prompts, mitigation)
+        comparison_results = await compare_models([model1, model2], prompts, mitigation)
 
         # Prepare comparison data
         comparison_data = {
@@ -188,3 +189,12 @@ async def get_recent_evaluations():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+@router.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@router.get("/health")
+async def health_check():
+    return {"status": "healthy", "version": "1.0.0"}

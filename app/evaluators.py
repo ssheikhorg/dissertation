@@ -454,13 +454,6 @@ class ModelEvaluator:
 
         return pd.DataFrame(results)
 
-    def compare_models(self, model_names: list[str], prompts: list[dict]) -> pd.DataFrame:
-        all_results = []
-        for model_name in model_names:
-            results = self.evaluate_model(model_name, prompts)
-            all_results.append(results)
-        return pd.concat(all_results)
-
 
 class MedicalModelEvaluator:
     def __init__(self):

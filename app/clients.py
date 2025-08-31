@@ -273,7 +273,7 @@ async def generate_visualization_data(
 
     for dataset in datasets:
         prompts = load_test_prompts(dataset_name=dataset, n_samples=n_samples)
-        results = compare_models(model_names, prompts)  # Async call
+        results = await compare_models(model_names, prompts)  # Async call
         for model, result in results["models"].items():
             if result.get("metrics"):
                 general_data.append({"model": model, "dataset": dataset, **result["metrics"]})

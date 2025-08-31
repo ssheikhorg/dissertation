@@ -5,7 +5,6 @@ from pydantic_settings import BaseSettings
 
 
 class ModelConfig(BaseSettings):
-    # API Keys (all optional with None default)
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     google_api_key: str | None = None
