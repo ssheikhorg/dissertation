@@ -545,16 +545,17 @@ async def compare_models(model_names: list[str], prompts: list[dict], mitigation
     for model_name in model_names:
         try:
             # Get model client with mitigation
+            from .clients import ModelClient
             client = ModelClient.get_client(model_name, mitigation=mitigation)
 
             # Evaluate the model
             evaluator = MedicalModelEvaluator()
             # FIX: Make evaluate async or handle properly
-            results = evaluator.evaluate(client, prompts)
+            results = await evaluator.evaluate(client, prompts)
 
             all_results[model_name] = {
                 "metrics": results,
-                "sample_responses": results.get("sample_responses", [])[:2],
+                "sample_responses": results.get("sample_responses", []),
             }
 
         except Exception as e:

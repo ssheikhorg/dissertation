@@ -215,7 +215,9 @@ class BleurtScorer:
             batch_results = predict_out.tolist()
             all_results.extend(batch_results)
 
-        assert len(all_results) == len(candidates), f"Number of predictions does not match sentences: {len(all_results)} vs. {len(candidates)}"
+        assert len(all_results) == len(candidates), (
+            f"Number of predictions does not match sentences: {len(all_results)} vs. {len(candidates)}"
+        )
         return all_results
 
     def close(self):
@@ -304,7 +306,9 @@ class LengthBatchingBleurtScorer(BleurtScorer):
 
         assert np.all(all_results > -1000), "Something went wrong while running the dynamic batching scorer."
         all_results = list(all_results)
-        assert len(all_results) == n_items, f"Number of predictions does not match sentences: {len(all_results)} vs. {len(candidates)}"
+        assert len(all_results) == n_items, (
+            f"Number of predictions does not match sentences: {len(all_results)} vs. {len(candidates)}"
+        )
 
         logging.info(f"Average batch sequence length: {np.mean(batch_lens)}")
 
@@ -359,7 +363,9 @@ class SavedModelBleurtScorer:
             batch_cand = candidates[i : i + batch_size]
 
             if self.serialize_input:
-                tfrecords = [encoding.serialize_raw_example(r, c) for (r, c) in zip(batch_ref, batch_cand, strict=False)]
+                tfrecords = [
+                    encoding.serialize_raw_example(r, c) for (r, c) in zip(batch_ref, batch_cand, strict=False)
+                ]
                 predict_out = self.bleurt_model_ops(examples=tf.constant(tfrecords))["predictions"].numpy()
             else:
                 predict_out = self.bleurt_model_ops(
@@ -369,7 +375,9 @@ class SavedModelBleurtScorer:
             batch_results = predict_out.tolist()
             all_results.extend(batch_results)
 
-        assert len(all_results) == len(candidates), f"Number of predictions does not match sentences: {len(all_results)} vs. {len(candidates)}"
+        assert len(all_results) == len(candidates), (
+            f"Number of predictions does not match sentences: {len(all_results)} vs. {len(candidates)}"
+        )
         return all_results
 
     def close(self):

@@ -16,7 +16,6 @@
 Source: https://github.com/google-research/language/
 """
 
-
 import tensorflow.compat.v1 as tf
 from absl import flags
 from tensorflow.compat.v1 import estimator as tf_estimator

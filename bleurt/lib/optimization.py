@@ -16,7 +16,6 @@
 Branched from https://github.com/google-research/bert.
 """
 
-
 import re
 
 import tensorflow.compat.v1 as tf

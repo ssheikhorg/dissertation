@@ -199,9 +199,7 @@ def _shuffle_no_leak(all_ratings_df, n_train):
     # Checks that there is no leakage.
     train_sentences = train_ratings_df.reference.unique()
     dev_sentences = dev_ratings_df.reference.unique()
-    tf.logging.info(
-        f"Using {len(train_sentences)} and {len(dev_sentences)} unique sentences for train and dev."
-    )
+    tf.logging.info(f"Using {len(train_sentences)} and {len(dev_sentences)} unique sentences for train and dev.")
     assert not bool(set(train_sentences) & set(dev_sentences))
 
     return train_ratings_df, dev_ratings_df

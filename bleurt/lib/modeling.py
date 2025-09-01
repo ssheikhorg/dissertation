@@ -16,7 +16,6 @@
 Branched from https://github.com/google-research/bert.
 """
 
-
 import collections
 import copy
 import json

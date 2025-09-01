@@ -352,9 +352,7 @@ def metric_fn(per_example_loss, pred, ratings):
 
 def input_fn_builder(tfrecord_file, seq_length, is_training, batch_size, drop_remainder=True):
     """Creates an `input_fn` closure to be passed to Estimator."""
-    logging.info(
-        f"Creating input fun with batch_size: {str(batch_size)} and drop remainder: {str(drop_remainder)}"
-    )
+    logging.info(f"Creating input fun with batch_size: {str(batch_size)} and drop remainder: {str(drop_remainder)}")
     name_to_features = {
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
