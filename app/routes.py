@@ -31,14 +31,12 @@ async def evaluate_model(
     """Evaluate a single model with focus on hallucination metrics"""
     try:
         # Load prompts
-        prompts = load_test_prompts(dataset, min(sample_count, 100))  # Fixed max_samples
-
-        # Initialize model client with mitigation
+        prompts = load_test_prompts(dataset, min(sample_count, 100))
         client = ModelClient.get_client(model_name, mitigation=mitigation)
 
         # Evaluate with medical-specific metrics
         evaluator = MedicalModelEvaluator()
-        results = evaluator.evaluate(client, prompts)
+        results = await evaluator.evaluate(client, prompts)
 
         # Get baseline for comparison
         baseline = load_baseline(model_name, dataset)
@@ -93,8 +91,6 @@ async def api_compare_models(
     """Compare two models with focus on hallucination metrics"""
     try:
         prompts = load_test_prompts(dataset, min(sample_count, 100))
-
-        # Evaluate both models using the compare_models function
         comparison_results = await compare_models([model1, model2], prompts, mitigation)
 
         # Prepare comparison data

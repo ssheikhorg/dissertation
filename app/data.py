@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -62,6 +63,33 @@ class DatasetLoader:
                 "reference_col": "label",
             },
         }
+        self.diseases = {"cancer", "diabetes", "hypertension", "asthma", "arthritis"}
+        self.drugs = {"aspirin", "ibuprofen", "metformin", "lisinopril", "atorvastatin"}
+        self.anatomy = {"heart", "lung", "liver", "brain", "kidney"}
+        try:
+            loop = asyncio.get_running_loop()
+            self._load_task = loop.create_task(self._async_load_medical_entities())
+        except RuntimeError:
+            # No running loop at import time; defer loading until ensure_loaded() is awaited
+            self._load_task = None
+
+    async def _async_load_medical_entities(self):
+        """Asynchronously load medical entities in the background"""
+        try:
+            diseases = await load_disease_terms()
+            drugs = load_drug_terms()
+            anatomy = load_anatomy_terms()
+
+            self.diseases = set(diseases)
+            self.drugs = set(drugs)
+            self.anatomy = set(anatomy)
+        except Exception as e:
+            print(f"Warning: Failed to load medical entities: {e}")
+
+    async def ensure_loaded(self):
+        """Wait for medical entities to be loaded if needed"""
+        if self._load_task and not self._load_task.done():
+            await self._load_task
 
     def load_dataset(self, name: str) -> pd.DataFrame:
         if name not in self.benchmarks:
@@ -86,11 +114,18 @@ class DatasetLoader:
             for _, row in samples.iterrows()
         ]
 
-    def load_medical_entities(self):
+    async def load_medical_entities(self):
         """Load common medical entities to verify against"""
-        self.diseases = set(load_disease_terms())
-        self.drugs = set(load_drug_terms())
-        self.anatomy = set(load_anatomy_terms())
+        try:
+            self.diseases = set(await load_disease_terms())
+            self.drugs = set(load_drug_terms())
+            self.anatomy = set(load_anatomy_terms())
+        except Exception as e:
+            print(f"Warning: Failed to load medical entities: {e}")
+            # Fallback to default terms
+            self.diseases = {"cancer", "diabetes", "hypertension", "asthma", "arthritis"}
+            self.drugs = {"aspirin", "ibuprofen", "metformin", "lisinopril", "atorvastatin"}
+            self.anatomy = {"heart", "lung", "liver", "brain", "kidney"}
 
 
 class PubMedRetriever:
@@ -101,11 +136,11 @@ class PubMedRetriever:
         self.last_request_time = 0
         self.min_request_interval = 0.34  # Respect PubMed's rate limit (3 requests/second)
 
-    def _rate_limit(self):
+    async def _rate_limit(self):
         """Ensure we respect PubMed's rate limits"""
         elapsed = time.time() - self.last_request_time
         if elapsed < self.min_request_interval:
-            time.sleep(self.min_request_interval - elapsed)
+            await asyncio.sleep(self.min_request_interval - elapsed)
         self.last_request_time = time.time()
 
     async def search(self, query: str, max_results: int = 3) -> list[PubMedArticle]:
@@ -114,7 +149,7 @@ class PubMedRetriever:
         if cache_key in self.cache:
             return self.cache[cache_key]
 
-        self._rate_limit()
+        await self._rate_limit()  # Make rate_limit async too
         params = {
             "db": "pubmed",
             "term": query,
@@ -145,7 +180,7 @@ class PubMedRetriever:
         if cache_key in self.cache:
             return self.cache[cache_key]
 
-        self._rate_limit()
+        await self._rate_limit()  # Make rate_limit async too
         params = {"db": "pubmed", "id": ",".join(pmid_list), "retmode": "xml"}
         if self.api_key:
             params["api_key"] = self.api_key
@@ -163,17 +198,18 @@ class PubMedRetriever:
         root = ET.fromstring(xml_content)
         articles = []
         for article in root.findall(".//PubmedArticle"):
-            pmid = article.findtext(".//PMID")
-            title = article.findtext(".//ArticleTitle")
-            abstract = article.findtext(".//AbstractText")
-            authors = [a.text for a in article.findall(".//Author/LastName")]
-            journal = article.findtext(".//Journal/Title")
-            pub_date = article.findtext(".//PubDate/Year")
+            pmid = article.findtext(".//PMID") or "Unknown"
+            title = article.findtext(".//ArticleTitle") or "No title"
+            abstract = article.findtext(".//AbstractText") or ""  # Handle None case
+            authors = [a.text for a in article.findall(".//Author/LastName") if a.text]
+            journal = article.findtext(".//Journal/Title") or "Unknown journal"
+            pub_date = article.findtext(".//PubDate/Year") or "Unknown date"
+
             articles.append(
                 PubMedArticle(
                     pmid=pmid,
                     title=title,
-                    abstract=abstract,
+                    abstract=abstract,  # Now guaranteed to be a string
                     authors=authors,
                     journal=journal,
                     publication_date=pub_date,
@@ -287,10 +323,10 @@ def rate_limit_sleep(api_name: str):
     time.sleep(settings.datasets.rate_limits.get(api_name.lower(), 1.0))
 
 
-def load_disease_terms():
+async def load_disease_terms():
     retriever = PubMedRetriever()
-    articles = retriever.search("disease", max_results=10)  # Async call needs await
-    return [article.title for article in articles]  # Example
+    articles = await retriever.search("disease", max_results=10)  # Async call needs await
+    return [article.title for article in articles]
 
 
 def load_drug_terms():

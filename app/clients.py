@@ -14,7 +14,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .config import settings
 from .data import PubMedRetriever, load_test_prompts
-from .evaluators import ModelEvaluator, compare_models
+from .evaluators import MedicalModelEvaluator, compare_models
 
 
 class ModelNameEnum(Enum):
@@ -100,9 +100,6 @@ class ModelClient:
 
     def __init__(self, model_name: str):
         self.model_name = model_name
-        # Safe access to models config with defaults
-        self.config = getattr(settings, "models", {}).get(model_name, {})
-        self.provider = self.config.get("provider", "huggingface")
 
     @classmethod
     def get_client(cls, model_name: str, mitigation: str = None) -> "ModelClient":
@@ -144,7 +141,7 @@ class xAIClient(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
         # Use config API key first, then fallback to global setting
-        self.api_key = self.config.get("api_key") or getattr(settings, "xai_api_key", None)
+        self.api_key = settings.xai_api_key
         self.base_url = "https://api.x.ai/v1"
 
     async def generate(self, prompt, **kwargs):
@@ -155,8 +152,8 @@ class xAIClient(ModelClient):
         payload = {
             "model": kwargs.get("model", "grok-beta"),
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": kwargs.get("max_tokens", self.config.get("max_tokens", 1000)),
-            "temperature": kwargs.get("temperature", self.config.get("temperature", 0.7)),
+            "max_tokens": settings.max_tokens,
+            "temperature": settings.temperature,
         }
         async with httpx.AsyncClient(headers=headers) as client:
             response = await client.post(f"{self.base_url}/chat/completions", json=payload)
@@ -168,10 +165,9 @@ class xAIClient(ModelClient):
 class OpenAIClient(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        # Use config API key first, then fallback to global setting
-        api_key = self.config.get("api_key") or getattr(settings, "openai_api_key", None)
+        api_key = settings.openai_api_key
         self.client = openai.Client(api_key=api_key)
-        enable_rag = self.config.get("enable_rag", getattr(settings, "enable_rag", True))
+        enable_rag = settings.enable_rag
         self.retriever = PubMedRetriever() if enable_rag else None
 
     async def generate(self, prompt, **kwargs):
@@ -184,10 +180,8 @@ class OpenAIClient(ModelClient):
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[{"role": "user", "content": augmented_prompt}],
-            temperature=kwargs.get(
-                "temperature", self.config.get("temperature", getattr(settings, "temperature", 0.3))
-            ),
-            max_tokens=kwargs.get("max_tokens", self.config.get("max_tokens", getattr(settings, "max_tokens", 1000))),
+            temperature=kwargs.get("temperature", settings.temperature),
+            max_tokens=settings.max_tokens,
         )
         return response.choices[0].message.content
 
@@ -196,14 +190,13 @@ class OpenAIClient(ModelClient):
 class AnthropicClient(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        # Use config API key first, then fallback to global setting
-        api_key = self.config.get("api_key") or getattr(settings, "anthropic_api_key", None)
+        api_key = settings.anthropic_api_key
         self.client = Anthropic(api_key=api_key)
 
     async def generate(self, prompt, **kwargs):
         response = await self.client.messages.create(
             model=kwargs.get("model", "claude-3-opus-20240229"),
-            max_tokens=kwargs.get("max_tokens", self.config.get("max_tokens", 1000)),
+            max_tokens=settings.max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text
@@ -213,11 +206,15 @@ class AnthropicClient(ModelClient):
 class GeminiClient(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        genai.configure(api_key=self.config.api_key)
+        api_key = settings.google_api_key
+        if not api_key:
+            raise ValueError("Gemini API key not configured")
+        genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel("gemini-pro")
 
     async def generate(self, prompt, **kwargs):
-        response = await self.model.generate_content_async(prompt)
+        # FIX: Correct method name
+        response = self.model.generate_content(prompt)
         return response.text
 
 
@@ -242,13 +239,7 @@ class HuggingFaceModel(ModelClient):
     async def generate(self, prompt: str, **kwargs) -> str:
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
         outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=kwargs.get(
-                "max_tokens", self.config.get("max_tokens", getattr(settings, "max_tokens", 1000))
-            ),
-            temperature=kwargs.get(
-                "temperature", self.config.get("temperature", getattr(settings, "temperature", 0.3))
-            ),
+            **inputs, max_new_tokens=kwargs.get("max_tokens", settings.max_tokens), temperature=settings.temperature
         )
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
@@ -260,20 +251,7 @@ async def generate_visualization_data(
     bias_types: list[str] = ["Gender", "Racial", "Political"],
     n_samples: int = 100,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Generate DataFrames for visualization from model evaluation results.
-
-    Args:
-        model_names: List of model names to evaluate (default: all registered models).
-        datasets: List of dataset names to evaluate on.
-        metrics: List of metrics to include in the general DataFrame.
-        bias_types: List of bias types for the bias DataFrame.
-        n_samples: Number of samples per dataset.
-
-    Returns:
-        Tuple of (general_df, bias_df):
-        - general_df: DataFrame for create_grouped_barplot/metric_comparison_bars.
-        - bias_df: DataFrame for stacked_bias_bars.
-    """
+    """Generate DataFrames for visualization from model evaluation results."""
     if model_names is None:
         model_names = list(ModelClient._registry.keys())
 
@@ -282,18 +260,21 @@ async def generate_visualization_data(
 
     for dataset in datasets:
         prompts = load_test_prompts(dataset_name=dataset, n_samples=n_samples)
-        results = await compare_models(model_names, prompts)  # Async call
+        # FIX: Pass prompts to compare_models
+        results = await compare_models(model_names, prompts, mitigation=None)
         for model, result in results["models"].items():
             if result.get("metrics"):
                 general_data.append({"model": model, "dataset": dataset, **result["metrics"]})
-                # Generate bias data (placeholder: assumes bias_analyzer results)
-                bias_scores = await ModelEvaluator().evaluate_model(model, prompts, mitigation=None)
+                # FIX: Use actual bias evaluation instead of placeholder
+                evaluator = MedicalModelEvaluator()
+                client = ModelClient.get_client(model)
+                bias_results = evaluator.evaluate(client, prompts[:5])  # Sample for efficiency
                 for bias_type in bias_types:
                     bias_data.append(
                         {
                             "model": model,
                             "bias_type": bias_type,
-                            "score": bias_scores.get("toxicity_score", 0.0),  # Example: use real bias scores
+                            "score": bias_results.get("toxicity_score", 0.0),
                         }
                     )
 
