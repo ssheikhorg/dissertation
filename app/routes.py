@@ -1,6 +1,8 @@
+import hashlib
 import json
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -17,8 +19,21 @@ from .evaluators import (
     prepare_scatter_data,
 )
 
+# Add these constants
+CACHE_DIR = Path("cache")
+EVAL_CACHE_DIR = CACHE_DIR / "evaluations"
+VISUALIZATION_CACHE_DIR = CACHE_DIR / "visualizations"
+EVAL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+VISUALIZATION_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+
+
+def get_cache_key(*args):
+    """Generate a unique cache key from parameters"""
+    key_string = "_".join(str(arg) for arg in args)
+    return hashlib.md5(key_string.encode()).hexdigest()
 
 
 @router.post("/api/evaluate")
@@ -30,6 +45,23 @@ async def evaluate_model(
 ):
     """Evaluate a single model with focus on hallucination metrics"""
     try:
+        # Check cache first
+        cache_key = get_cache_key(model_name, dataset, sample_count, mitigation)
+        cache_file = EVAL_CACHE_DIR / f"{cache_key}.json"
+
+        if cache_file.exists():
+            with open(cache_file) as f:
+                return json.load(f)
+
+        # Check if it's a paid model without API key
+        paid_models = ["gpt-3.5-turbo", "gpt-4", "claude-2", "gemini-2.0-flash-lite", "grok-beta"]
+        if model_name in paid_models:
+            return {
+                "error": "paid_model",
+                "message": f"This model ({model_name}) requires a paid API key. Please use free models like llama-2-7b, mistral-7b, qwen-7b, meditron-7b, or biomedgpt for evaluation.",
+                "free_models": ["llama-2-7b", "mistral-7b", "qwen-7b", "meditron-7b", "biomedgpt"],
+            }
+
         # Load prompts
         prompts = load_test_prompts(dataset, min(sample_count, 100))
         client = ModelClient.get_client(model_name, mitigation=mitigation)
@@ -118,14 +150,27 @@ async def api_compare_models(
 
 @router.get("/api/visualize")
 async def generate_visualization(
-    visualization_type: str,
-    metric: str,
-    models: list[str] = None,
+    visualization_type: str, metric: str, models: list[str] = None, use_demo: bool = True
 ):
     """Generate visualization data for the dashboard"""
     try:
         if models is None:
-            models = list(ModelClient._registry.keys())
+            models = ["llama-2-7b", "mistral-7b", "qwen-7b"]  # Default to free models
+
+        # Check for demo data first
+        if use_demo:
+            demo_file = VISUALIZATION_CACHE_DIR / f"demo_{visualization_type}_{metric}.json"
+            if demo_file.exists():
+                with open(demo_file) as f:
+                    return json.load(f)
+
+        # Check cache first
+        cache_key = get_cache_key(visualization_type, metric, *sorted(models))
+        cache_file = VISUALIZATION_CACHE_DIR / f"{cache_key}.json"
+
+        if cache_file.exists():
+            with open(cache_file) as f:
+                return json.load(f)
 
         # Generate visualization data
         general_df, bias_df = await generate_visualization_data(
@@ -143,8 +188,11 @@ async def generate_visualization(
             secondary_metric = "accuracy" if "hallucination" in metric else "hallucination_rate"
             chart_data = prepare_scatter_data(general_df, metric, secondary_metric)
         else:
-            return {"error": "Unsupported visualization type"}
+            raise HTTPException(status_code=400, detail="Invalid visualization type")
 
+        # Save to cache
+        with open(cache_file, "w") as f:
+            json.dump(chart_data, f, indent=2)
         return chart_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

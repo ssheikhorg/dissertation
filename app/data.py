@@ -143,44 +143,26 @@ class DatasetLoader:
             return fallback_dataset[fallback_cfg["split"]].to_pandas()
 
     def _get_fallback_prompts(self, n_samples: int) -> list[dict]:
-        """Provide fallback medical prompts if dataset loading fails"""
+        """Provide fallback medical prompts suitable for smaller models"""
         fallback_prompts = [
             {
-                "question": "What are the common symptoms of diabetes?",
-                "long_answer": "Common symptoms of diabetes include increased thirst, frequent urination, extreme hunger, unexplained weight loss, fatigue, blurred vision, slow-healing sores, and frequent infections.",
+                "question": "What are common diabetes symptoms?",
+                "long_answer": "Common diabetes symptoms include increased thirst, frequent urination, and fatigue.",
             },
             {
-                "question": "How does aspirin work as a pain reliever?",
-                "long_answer": "Aspirin works by inhibiting the production of prostaglandins, which are chemicals that cause pain, fever, and inflammation. It blocks the cyclooxygenase (COX) enzymes, reducing the synthesis of these pain-causing compounds.",
+                "question": "How does aspirin work?",
+                "long_answer": "Aspirin reduces pain and inflammation by blocking certain enzymes.",
             },
             {
-                "question": "What is hypertension and how is it treated?",
-                "long_answer": "Hypertension, or high blood pressure, is a condition where the force of blood against artery walls is too high. Treatment typically involves lifestyle changes (diet, exercise, weight loss) and medications such as ACE inhibitors, beta-blockers, diuretics, or calcium channel blockers.",
+                "question": "What is hypertension?",
+                "long_answer": "Hypertension is high blood pressure that can lead to health problems.",
             },
             {
-                "question": "Describe the function of the human liver",
-                "long_answer": "The liver performs several vital functions including detoxification of harmful substances, protein synthesis, production of biochemicals necessary for digestion, storage of glycogen, and secretion of bile which helps in fat digestion.",
-            },
-            {
-                "question": "What are the risk factors for heart disease?",
-                "long_answer": "Major risk factors for heart disease include high blood pressure, high cholesterol, smoking, diabetes, obesity, physical inactivity, unhealthy diet, excessive alcohol consumption, and family history of heart disease.",
+                "question": "Liver function in human body?",
+                "long_answer": "The liver detoxifies chemicals and produces bile for digestion.",
             },
         ]
-
-        # Return requested number of samples (repeating if necessary)
-        n_samples = min(n_samples, len(fallback_prompts))
-        selected_prompts = fallback_prompts[:n_samples]
-
-        # Convert to the standard format
-        return [
-            {
-                "prompt": p["question"],
-                "reference": p["long_answer"],
-                "question": p["question"],
-                "long_answer": p["long_answer"],
-            }
-            for p in selected_prompts
-        ]
+        return fallback_prompts[:n_samples]
 
     def get_test_prompts(self, name: str, n_samples: int = 100) -> list[dict]:
         try:

@@ -112,6 +112,20 @@ class ModelConfig(BaseSettings):
                 "temperature": 0.3,
                 "max_tokens": 1000,
             },
+            "meditron-7b": {
+                "provider": "huggingface",
+                "api_key": None,
+                "enable_rag": True,
+                "temperature": 0.3,
+                "max_tokens": 1000,
+            },
+            "biomedgpt": {
+                "provider": "huggingface",
+                "api_key": None,
+                "enable_rag": True,
+                "temperature": 0.3,
+                "max_tokens": 1000,
+            },
         }
     )
 

@@ -546,6 +546,7 @@ async def compare_models(model_names: list[str], prompts: list[dict], mitigation
         try:
             # Get model client with mitigation
             from .clients import ModelClient
+
             client = ModelClient.get_client(model_name, mitigation=mitigation)
 
             # Evaluate the model

@@ -86,6 +86,8 @@ class ModelClient:
         "mistral-7b": "HuggingFaceModel",
         "deepseek-7b": "HuggingFaceModel",
         "qwen-7b": "HuggingFaceModel",
+        "meditron-7b": "HuggingFaceModel",
+        "biomedgpt": "HuggingFaceModel",
     }
 
     @classmethod
@@ -218,12 +220,36 @@ class GeminiClient(ModelClient):
         return response.text
 
 
+# Add to clients.py
+@ModelClient.register_client("local")
+class LocalModel(ModelClient):
+    def __init__(self, model_name: str):
+        super().__init__(model_name)
+        # You can download models locally and use them offline
+        self.model_path = f"./models/{model_name}"
+
+    async def generate(self, prompt: str, **kwargs) -> str:
+        # Implement local model inference
+        # This could use Ollama, llama.cpp, or other local inference engines
+        return "Local model response - implement your local inference here"
+
+
 @ModelClient.register_client("huggingface")
 class HuggingFaceModel(ModelClient):
     def __init__(self, model_name: str):
         super().__init__(model_name)
-        self.device = "cuda" if torch.cuda.is_available() and getattr(settings, "use_gpu", False) else "cpu"
 
+        model_mapping = {
+            "llama-2-7b": "meta-llama/Llama-2-7b-chat-hf",
+            "mistral-7b": "mistralai/Mistral-7B-v0.1",
+            "deepseek-7b": "deepseek-ai/deepseek-llm-7b",
+            "qwen-7b": "Qwen/Qwen-7B",
+            "meditron-7b": "meditron-7b",
+            "biomedgpt": "stanford-crfm/BioMedGPT",
+        }
+        actual_model_name = model_mapping.get(model_name, model_name)
+
+        self.device = "cuda" if torch.cuda.is_available() and getattr(settings, "use_gpu", False) else "cpu"
         torch_dtype = torch.float32 if self.device == "mps" else torch.float16
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -231,7 +257,7 @@ class HuggingFaceModel(ModelClient):
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
+            actual_model_name,
             torch_dtype=torch_dtype,
             device_map="auto" if self.device != "mps" else None,
         ).to(self.device)
