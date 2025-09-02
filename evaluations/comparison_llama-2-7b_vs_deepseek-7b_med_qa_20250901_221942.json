@@ -1,0 +1,27 @@
+{
+  "models": {
+    "llama-2-7b": {
+      "error": "llama-2-7b is not a local folder and is not a valid model identifier listed on 'https://huggingface.co/models'\nIf this is a private repository, make sure to pass a token having permission to this repo either by logging in with `hf auth login` or by passing `token=<your_token>`",
+      "metrics": null
+    },
+    "deepseek-7b": {
+      "error": "deepseek-7b is not a local folder and is not a valid model identifier listed on 'https://huggingface.co/models'\nIf this is a private repository, make sure to pass a token having permission to this repo either by logging in with `hf auth login` or by passing `token=<your_token>`",
+      "metrics": null
+    }
+  },
+  "comparison": {},
+  "prompt_count": 10,
+  "dataset_stats": {
+    "prompt_length": {
+      "mean": 94.0,
+      "max": 133,
+      "min": 61
+    },
+    "reference_length": {
+      "mean": 317.9,
+      "max": 652,
+      "min": 122
+    },
+    "total_prompts": 10
+  }
+}

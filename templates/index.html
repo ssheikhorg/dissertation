@@ -3,78 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Model Evaluation Dashboard</title>
+    <title>Local Model Evaluation Dashboard</title>
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="/static/index.css" rel="stylesheet">
     <style>
-        .warning-message {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-
-        .error-message {
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
+        .loading {
+            display: none;
+            text-align: center;
             padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .results-container {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
             border-radius: 8px;
-            margin: 20px 0;
+            background-color: #f9f9f9;
         }
 
-        .free-models-suggestion {
-            margin-top: 15px;
+        .metric-card {
+            background: white;
             padding: 15px;
-            background-color: #d1ecf1;
-            border: 1px solid #bee5eb;
-            border-radius: 5px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .free-models-suggestion ul {
-            margin: 10px 0 0 0;
-            padding-left: 20px;
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
         }
 
-        .free-models-suggestion li {
-            margin: 5px 0;
-            font-family: monospace;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 3px;
-        }
-
-        .free-models-suggestion li:hover {
-            background-color: #bee5eb;
-        }
-
-        .model-tag {
-            font-size: 0.8em;
-            padding: 2px 6px;
-            border-radius: 3px;
-            margin-left: 5px;
-        }
-
-        .tag-paid {
-            background-color: #e74c3c;
-            color: white;
-        }
-
-        .tag-free {
-            background-color: #27ae60;
-            color: white;
-        }
-
-        .cached-indicator {
-            font-size: 0.8em;
+        .improvement-positive {
             color: #27ae60;
-            margin-left: 10px;
-            font-style: italic;
+        }
+
+        .improvement-negative {
+            color: #e74c3c;
+        }
+
+        .sample-response {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .suggestion {
+            background: #e8f4fc;
+            padding: 12px;
+            margin: 8px 0;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -89,8 +96,8 @@
     <!-- Home Page -->
     <div id="home-page" class="page active">
         <div class="hero">
-            <h1>Model Evaluation Dashboard</h1>
-            <p>Compare and evaluate different LLM models with comprehensive metrics</p>
+            <h1>Local Model Evaluation Dashboard</h1>
+            <p>Evaluate and compare local LLM models with focus on hallucination detection</p>
         </div>
 
         <div class="features">
@@ -133,20 +140,13 @@
                 <div class="controls">
                     <div class="control-group">
                         <label for="model-select">Model:</label>
-                        <select id="model-select" name="model_name" onchange="checkModelType(this, 'eval')">
-                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo <span class="model-tag tag-paid">Paid</span>
-                            </option>
-                            <option value="claude-2">Claude 2 <span class="model-tag tag-paid">Paid</span></option>
-                            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite <span
-                                    class="model-tag tag-paid">Paid</span></option>
-                            <option value="grok-beta">Grok Beta <span class="model-tag tag-paid">Paid</span></option>
-                            <option value="llama-2-7b">LLaMA 2 (7B) <span class="model-tag tag-free">FREE</span>
-                            </option>
-                            <option value="mistral-7b">Mistral 7B <span class="model-tag tag-free">FREE</span></option>
-                            <option value="qwen-7b">Qwen 7B <span class="model-tag tag-free">FREE</span></option>
-                            <option value="meditron-7b">Meditron 7B <span class="model-tag tag-free">FREE</span>
-                            </option>
-                            <option value="biomedgpt">BioMedGPT <span class="model-tag tag-free">FREE</span></option>
+                        <select id="model-select" name="model_name">
+                            <option value="claude-3.7">Claude 3.7</option>
+                            <option value="mistral-7b">Mistral 7B</option>
+                            <option value="llama-2-7b">LLaMA 2 (7B)</option>
+                            <option value="qwen-7b">Qwen 7B</option>
+                            <option value="meditron-7b">Meditron 7B</option>
+                            <option value="biomedgpt">BioMedGPT</option>
                         </select>
                     </div>
 
@@ -161,18 +161,13 @@
 
                     <div class="control-group">
                         <label for="sample-count-eval">Sample Count:</label>
-                        <input type="range" id="sample-count-eval" name="sample_count" min="1" max="20" value="5">
-                        <span id="sample-count-value-eval">5</span>
+                        <input type="range" id="sample-count-eval" name="sample_count" min="1" max="10" value="3">
+                        <span id="sample-count-value-eval">3</span>
                     </div>
 
                     <div class="control-group">
-                        <label for="mitigation-select">Mitigation Strategy:</label>
-                        <select id="mitigation-select" name="mitigation">
-                            <option value="">None</option>
-                            <option value="rag">RAG (Retrieval Augmented)</option>
-                            <option value="lora">LoRA Fine-tuning</option>
-                            <option value="ensemble">Ensemble</option>
-                        </select>
+                        <label for="rag-toggle">Use RAG (Medical Context):</label>
+                        <input type="checkbox" id="rag-toggle" name="use_rag" checked>
                     </div>
 
                     <button
@@ -186,16 +181,12 @@
                 </div>
             </form>
 
-            <div id="paid-model-warning-eval" class="warning-message" style="display: none;">
-                ⚠️ This is a paid model. For free evaluation, please select models marked "FREE"
-            </div>
-
             <div class="loading loading-eval">
                 <div class="spinner"></div>
-                <p>Evaluating model...</p>
+                <p>Evaluating model... This may take a few minutes for local models.</p>
             </div>
 
-            <div id="results-eval"></div>
+            <div id="results-eval" class="results-container"></div>
         </div>
     </div>
 
@@ -209,36 +200,22 @@
                     <div class="control-group">
                         <label>Models to Compare:</label>
                         <div class="model-selection">
-                            <select id="model1-select" name="model1" onchange="checkModelType(this, 'comp1')">
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo <span class="model-tag tag-paid">Paid</span>
-                                </option>
-                                <option value="gpt-4">GPT-4 <span class="model-tag tag-paid">Paid</span></option>
-                                <option value="claude-2">Claude 2 <span class="model-tag tag-paid">Paid</span></option>
-                                <option value="llama-2-7b">LLaMA 2 (7B) <span class="model-tag tag-free">FREE</span>
-                                </option>
-                                <option value="mistral-7b">Mistral 7B <span class="model-tag tag-free">FREE</span>
-                                </option>
-                                <option value="qwen-7b">Qwen 7B <span class="model-tag tag-free">FREE</span></option>
-                                <option value="meditron-7b">Meditron 7B <span class="model-tag tag-free">FREE</span>
-                                </option>
-                                <option value="biomedgpt">BioMedGPT <span class="model-tag tag-free">FREE</span>
-                                </option>
+                            <select id="model1-select" name="model1">
+                                <option value="claude-3.7">Claude 3.7</option>
+                                <option value="mistral-7b">Mistral 7B</option>
+                                <option value="llama-2-7b">LLaMA 2 (7B)</option>
+                                <option value="qwen-7b">Qwen 7B</option>
+                                <option value="meditron-7b">Meditron 7B</option>
+                                <option value="biomedgpt">BioMedGPT</option>
                             </select>
                             <span>vs</span>
-                            <select id="model2-select" name="model2" onchange="checkModelType(this, 'comp2')">
-                                <option value="llama-2-7b">LLaMA 2 (7B) <span class="model-tag tag-free">FREE</span>
-                                </option>
-                                <option value="mistral-7b">Mistral 7B <span class="model-tag tag-free">FREE</span>
-                                </option>
-                                <option value="qwen-7b">Qwen 7B <span class="model-tag tag-free">FREE</span></option>
-                                <option value="meditron-7b">Meditron 7B <span class="model-tag tag-free">FREE</span>
-                                </option>
-                                <option value="biomedgpt">BioMedGPT <span class="model-tag tag-free">FREE</span>
-                                </option>
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo <span class="model-tag tag-paid">Paid</span>
-                                </option>
-                                <option value="gpt-4">GPT-4 <span class="model-tag tag-paid">Paid</span></option>
-                                <option value="claude-2">Claude 2 <span class="model-tag tag-paid">Paid</span></option>
+                            <select id="model2-select" name="model2">
+                                <option value="mistral-7b">Mistral 7B</option>
+                                <option value="claude-3.7">Claude 3.7</option>
+                                <option value="llama-2-7b">LLaMA 2 (7B)</option>
+                                <option value="qwen-7b">Qwen 7B</option>
+                                <option value="meditron-7b">Meditron 7B</option>
+                                <option value="biomedgpt">BioMedGPT</option>
                             </select>
                         </div>
                     </div>
@@ -254,18 +231,13 @@
 
                     <div class="control-group">
                         <label for="sample-count-comp">Sample Count:</label>
-                        <input type="range" id="sample-count-comp" name="sample_count" min="1" max="20" value="5">
-                        <span id="sample-count-value-comp">5</span>
+                        <input type="range" id="sample-count-comp" name="sample_count" min="1" max="10" value="3">
+                        <span id="sample-count-value-comp">3</span>
                     </div>
 
                     <div class="control-group">
-                        <label for="mitigation-comp">Mitigation Strategy:</label>
-                        <select id="mitigation-comp" name="mitigation">
-                            <option value="">None</option>
-                            <option value="rag">RAG (Retrieval Augmented)</option>
-                            <option value="lora">LoRA Fine-tuning</option>
-                            <option value="ensemble">Ensemble</option>
-                        </select>
+                        <label for="rag-comp">Use RAG (Medical Context):</label>
+                        <input type="checkbox" id="rag-comp" name="use_rag" checked>
                     </div>
 
                     <button
@@ -279,19 +251,12 @@
                 </div>
             </form>
 
-            <div id="paid-model-warning-comp1" class="warning-message" style="display: none;">
-                ⚠️ Paid model selected
-            </div>
-            <div id="paid-model-warning-comp2" class="warning-message" style="display: none;">
-                ⚠️ Paid model selected
-            </div>
-
             <div class="loading loading-comp">
                 <div class="spinner"></div>
-                <p>Comparing models...</p>
+                <p>Comparing models... This may take a few minutes for local models.</p>
             </div>
 
-            <div id="results-comp"></div>
+            <div id="results-comp" class="results-container"></div>
         </div>
     </div>
 
@@ -316,18 +281,17 @@
                         <select id="metric-select" name="metric">
                             <option value="hallucination_rate">Hallucination Rate</option>
                             <option value="accuracy">Accuracy</option>
-                            <option value="fact_score">Fact Score</option>
-                            <option value="toxicity_score">Toxicity Score</option>
-                            <option value="medical_bleu">Medical BLEU</option>
-                            <option value="fabrication_score">Fabrication Score</option>
+                            <option value="confidence">Confidence</option>
+                            <option value="response_length">Response Length</option>
                         </select>
                     </div>
 
                     <div class="control-group">
-                        <label for="models-select">Models (optional):</label>
-                        <select id="models-select" name="models" multiple style="height: 100px;">
+                        <label for="models-select">Models:</label>
+                        <select id="models-select" name="models" multiple style="height: 120px;">
+                            <option value="claude-3.7" selected>Claude 3.7</option>
+                            <option value="mistral-7b" selected>Mistral 7B</option>
                             <option value="llama-2-7b">LLaMA 2 (7B)</option>
-                            <option value="mistral-7b">Mistral 7B</option>
                             <option value="qwen-7b">Qwen 7B</option>
                             <option value="meditron-7b">Meditron 7B</option>
                             <option value="biomedgpt">BioMedGPT</option>
@@ -351,9 +315,7 @@
                 <p>Generating visualization...</p>
             </div>
 
-            <div id="visualization-container" class="chart-container">
-                <!-- Visualization will be rendered here -->
-            </div>
+            <div id="visualization-container" class="chart-container"></div>
         </div>
     </div>
 </main>
@@ -367,9 +329,6 @@
 </footer>
 
 <script>
-    // Paid models list
-    const paidModels = ['gpt-3.5-turbo', 'gpt-4', 'claude-2', 'gemini-2.0-flash-lite', 'grok-beta'];
-
     // Update page navigation to handle URL changes
     function showPage(pageId) {
         // Hide all pages
@@ -385,77 +344,42 @@
         window.history.pushState({}, '', url);
     }
 
-    // Check if selected model is paid and show warning
-    function checkModelType(selectElement, context) {
-        const warningDiv = document.getElementById(`paid-model-warning-${context}`);
-        if (paidModels.includes(selectElement.value)) {
-            warningDiv.style.display = 'block';
-        } else {
-            warningDiv.style.display = 'none';
-        }
-    }
+    // Load available models from API on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('/api/models')
+                .then(response => response.json())
+                .then(data => {
+                    const modelSelect = document.getElementById('model-select');
+                    const model1Select = document.getElementById('model1-select');
+                    const model2Select = document.getElementById('model2-select');
+                    const modelsVisualization = document.getElementById('models-select');
 
-    // Handle paid model errors from server responses
-    document.body.addEventListener('htmx:afterRequest', function (evt) {
-        const response = evt.detail.xhr.responseText;
-        try {
-            const data = JSON.parse(response);
+                    // Clear existing options
+                    modelSelect.innerHTML = '';
+                    model1Select.innerHTML = '';
+                    model2Select.innerHTML = '';
+                    modelsVisualization.innerHTML = '';
 
-            if (data.error === "paid_model") {
-                // Show friendly error message
-                const targetId = evt.detail.target.id;
-                const container = document.getElementById(targetId);
+                    // Add available models
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
 
-                let html = `
-                        <div class="error-message">
-                            <h3>💰 Paid Model Selected</h3>
-                            <p>${data.message}</p>
-                            <div class="free-models-suggestion">
-                                <h4>Try these free models instead:</h4>
-                                <ul>
-                    `;
+                        const option2 = option.cloneNode(true);
+                        const option3 = option.cloneNode(true);
+                        const option4 = option.cloneNode(true);
 
-                data.free_models.forEach(model => {
-                    html += `<li onclick="selectFreeModel('${model}', '${targetId}')">${model}</li>`;
+                        modelSelect.appendChild(option);
+                        model1Select.appendChild(option2);
+                        model2Select.appendChild(option3);
+                        modelsVisualization.appendChild(option4);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading models:', error);
                 });
-
-                html += `
-                                </ul>
-                            </div>
-                        </div>
-                    `;
-
-                container.innerHTML = html;
-            }
-        } catch (e) {
-            // Not a JSON response or not our error format
-        }
     });
-
-    // Function to select a free model when clicked
-    function selectFreeModel(model, context) {
-        if (context === 'results-eval') {
-            document.getElementById('model-select').value = model;
-            checkModelType(document.getElementById('model-select'), 'eval');
-            // Trigger evaluation
-            document.querySelector('#evaluate-page .primary-button').click();
-        } else if (context === 'results-comp') {
-            // For comparison, we need to determine which model to replace
-            const model1 = document.getElementById('model1-select').value;
-            const model2 = document.getElementById('model2-select').value;
-
-            if (paidModels.includes(model1)) {
-                document.getElementById('model1-select').value = model;
-            } else if (paidModels.includes(model2)) {
-                document.getElementById('model2-select').value = model;
-            }
-
-            checkModelType(document.getElementById('model1-select'), 'comp1');
-            checkModelType(document.getElementById('model2-select'), 'comp2');
-            // Trigger comparison
-            document.querySelector('#compare-page .primary-button').click();
-        }
-    }
 
     // Handle browser back/forward buttons
     window.addEventListener('popstate', function (event) {
@@ -497,11 +421,29 @@
         else if (path === '/visualize') pageId = 'visualize';
 
         showPage(pageId);
+    });
 
-        // Initialize model warnings
-        checkModelType(document.getElementById('model-select'), 'eval');
-        checkModelType(document.getElementById('model1-select'), 'comp1');
-        checkModelType(document.getElementById('model2-select'), 'comp2');
+    // Handle form submissions and show loading indicators
+    document.body.addEventListener('htmx:beforeRequest', function (evt) {
+        const target = evt.detail.target.id;
+        if (target === 'results-eval') {
+            document.querySelector('.loading-eval').classList.add('active');
+        } else if (target === 'results-comp') {
+            document.querySelector('.loading-comp').classList.add('active');
+        } else if (target === 'visualization-container') {
+            document.querySelector('.loading-viz').classList.add('active');
+        }
+    });
+
+    document.body.addEventListener('htmx:afterRequest', function (evt) {
+        const target = evt.detail.target.id;
+        if (target === 'results-eval') {
+            document.querySelector('.loading-eval').classList.remove('active');
+        } else if (target === 'results-comp') {
+            document.querySelector('.loading-comp').classList.remove('active');
+        } else if (target === 'visualization-container') {
+            document.querySelector('.loading-viz').classList.remove('active');
+        }
     });
 
     // Handle visualization rendering
@@ -513,30 +455,23 @@
 
                 if (data.error) {
                     document.getElementById('visualization-container').innerHTML = `
-                            <div class="error-message">${data.error}</div>
-                        `;
+                        <div class="error-message">${data.error}</div>
+                    `;
                     return;
-                }
-
-                // Check if this is cached data
-                if (data.cached) {
-                    const cachedIndicator = document.createElement('div');
-                    cachedIndicator.className = 'cached-indicator';
-                    cachedIndicator.textContent = '✓ Using cached results for faster loading';
-                    document.getElementById('visualization-container').prepend(cachedIndicator);
                 }
 
                 // Render the chart based on the data
                 renderVisualization(data);
             } catch (e) {
-                // Not a JSON response, probably HTML
+                console.error('Error parsing visualization data:', e);
             }
         }
     });
 
-    // Function to render visualization (simplified version)
+    // Function to render visualization
     function renderVisualization(data) {
         const container = document.getElementById('visualization-container');
+        container.innerHTML = ''; // Clear previous content
 
         if (data.type === 'bar') {
             renderBarChart(data, container);
@@ -544,13 +479,14 @@
             renderRadarChart(data, container);
         } else if (data.type === 'scatter') {
             renderScatterChart(data, container);
+        } else {
+            container.innerHTML = `<p>Unsupported visualization type: ${data.type}</p>`;
         }
     }
 
-    // Simplified chart rendering functions
+    // Chart rendering functions
     function renderBarChart(data, container) {
         const canvas = document.createElement('canvas');
-        container.innerHTML = '';
         container.appendChild(canvas);
 
         new Chart(canvas, {
@@ -562,7 +498,6 @@
 
     function renderRadarChart(data, container) {
         const canvas = document.createElement('canvas');
-        container.innerHTML = '';
         container.appendChild(canvas);
 
         new Chart(canvas, {
@@ -574,7 +509,6 @@
 
     function renderScatterChart(data, container) {
         const canvas = document.createElement('canvas');
-        container.innerHTML = '';
         container.appendChild(canvas);
 
         new Chart(canvas, {
@@ -582,6 +516,143 @@
             data: data.data,
             options: data.options
         });
+    }
+
+    // Handle response rendering for evaluation results
+    document.addEventListener('htmx:afterSwap', function (event) {
+        if (event.detail.target.id === 'results-eval' || event.detail.target.id === 'results-comp') {
+            const response = event.detail.xhr.responseText;
+            try {
+                const data = JSON.parse(response);
+
+                if (data.error) {
+                    event.detail.target.innerHTML = `
+                        <div class="error-message">
+                            <h3>Error</h3>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Format the response for better readability
+                formatEvaluationResults(data, event.detail.target.id);
+            } catch (e) {
+                // Response is already formatted HTML
+            }
+        }
+    });
+
+    // Format evaluation results for better display
+    function formatEvaluationResults(data, targetId) {
+        const container = document.getElementById(targetId);
+
+        if (targetId === 'results-eval') {
+            // Single evaluation result
+            container.innerHTML = `
+                <h2>Evaluation Results: ${data.model}</h2>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Accuracy</h3>
+                        <div class="metric-value">${(data.metrics.accuracy * 100).toFixed(1)}%</div>
+                        <div class="improvement-${data.improvement.accuracy_improvement > 0 ? 'positive' : 'negative'}">
+                            ${data.improvement.accuracy_improvement > 0 ? '+' : ''}${data.improvement.accuracy_improvement.toFixed(1)}% vs baseline
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Hallucination Rate</h3>
+                        <div class="metric-value">${(data.metrics.hallucination_rate * 100).toFixed(1)}%</div>
+                        <div class="improvement-${data.improvement.hallucination_reduction > 0 ? 'positive' : 'negative'}">
+                            ${data.improvement.hallucination_reduction > 0 ? '-' : '+'}${Math.abs(data.improvement.hallucination_reduction).toFixed(1)}% vs baseline
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Confidence</h3>
+                        <div class="metric-value">${(data.metrics.confidence * 100).toFixed(1)}%</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Response Length</h3>
+                        <div class="metric-value">${data.metrics.response_length.toFixed(0)} chars</div>
+                    </div>
+                </div>
+
+                <h3>Improvement Suggestions</h3>
+                <div class="suggestions">
+                    ${data.suggestions.map(suggestion => `
+                    <div class="suggestion">
+                    <strong>${suggestion.category}:</strong> ${suggestion.suggestion}
+                            <br><em>Expected impact: ${suggestion.expected_impact}</em>
+                        </div>
+                    `
+        ).
+            join('')
+        }
+    </div>
+
+        <h3>Sample Responses</h3>
+        <div class="sample-responses">
+        ${data.sample_responses.map((response, index) => `
+                        <div class="sample-response">
+                            <h4>Sample ${index + 1}</h4>
+        <p><strong>Prompt:</strong> ${response.prompt}</p>
+        <p><strong>Reference:</strong> ${response.reference}</p>
+        <p><strong>Model Response:</strong> ${response.response}</p>
+        <p><strong>Accuracy:</strong> ${(response.accuracy * 100).toFixed(1)}%</p>
+        <p><strong>Hallucination Score:</strong> ${(response.hallucination_score * 100).toFixed(1)}%</p>
+    </div>
+        `).join('')}
+                </div>
+            `;
+    }
+
+    else
+    if (targetId === 'results-comp') {
+        // Comparison results
+        container.innerHTML = `
+                <h2>Model Comparison Results</h2>
+
+                <div class="comparison-metrics">
+                    ${Object.entries(data.comparison).map(([metric, comparison]) => `
+                <div class="metric-card">
+                <h3>${metric.replace('_', ' ').toUpperCase()}</h3>
+                            <p><strong>Best:</strong> ${comparison.best_model} (${(comparison.values[comparison.best_model] * 100).toFixed(1)}%)</p>
+                            <p><strong>Worst:</strong> ${comparison.worst_model} (${(comparison.values[comparison.worst_model] * 100).toFixed(1)}%)</p>
+                            <p><strong>Difference:</strong> ${(comparison.range * 100).toFixed(1)}%</p>
+                        </div>
+                    `
+    ).
+        join('')
+    }
+    </div>
+
+    <h3>Detailed Results</h3>
+    <div class="model-results">
+    ${Object.entries(data.models).map(([model, result]) => `
+                        <div class="model-result">
+                            <h4>${model}</h4>
+            ${result.metrics ? `
+            <p>Accuracy: ${(result.metrics.accuracy * 100).toFixed(1)}%
+    </p>
+    <p>Hallucination Rate: ${(result.metrics.hallucination_rate * 100).toFixed(1)}%</p>
+    <p>Confidence: ${(result.metrics.confidence * 100).toFixed(1)}%</p>
+            ` : ` < p
+
+    class
+
+    = "error-message" > Error
+    : ${result.error}</p>
+    `}
+                        </div>
+                    `
+    ).join('')
+    }
+    </div>
+    `;
+        }
     }
 </script>
 </body>

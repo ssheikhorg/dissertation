@@ -1,0 +1,27 @@
+{
+  "models": {
+    "gpt-3.5-turbo": {
+      "error": "name 'ModelClient' is not defined",
+      "metrics": null
+    },
+    "gpt-4": {
+      "error": "name 'ModelClient' is not defined",
+      "metrics": null
+    }
+  },
+  "comparison": {},
+  "prompt_count": 10,
+  "dataset_stats": {
+    "prompt_length": {
+      "mean": 106.7,
+      "max": 162,
+      "min": 68
+    },
+    "reference_length": {
+      "mean": 247.0,
+      "max": 404,
+      "min": 120
+    },
+    "total_prompts": 10
+  }
+}
