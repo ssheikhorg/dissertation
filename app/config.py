@@ -1,6 +1,5 @@
 # config.py - Simplified configuration
 
-
 class Settings():
     # Model settings
     model_name: str = "llama-2-7b"

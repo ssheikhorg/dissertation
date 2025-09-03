@@ -5,7 +5,7 @@ from langchain.llms import LlamaCpp, HuggingFacePipeline
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain.schema import BaseRetriever
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.docstore.in_memory import InMemoryDocstore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -26,7 +26,7 @@ class MedicalRetriever(BaseRetriever):
     def __init__(self):
         super().__init__()
         # Medical knowledge base
-        self.medical_knowledge = [
+        medical_knowledge = [
             "Diabetes symptoms include increased thirst, frequent urination, fatigue, blurred vision.",
             "Aspirin is a nonsteroidal anti-inflammatory drug that reduces pain and inflammation.",
             "Hypertension (high blood pressure) is a condition where blood pressure is consistently too high.",
@@ -40,19 +40,25 @@ class MedicalRetriever(BaseRetriever):
         ]
 
         # Create vector store for medical knowledge
-        self.text_splitter = RecursiveCharacterTextSplitter(
+        text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500, chunk_overlap=50
         )
-        documents = self.text_splitter.create_documents(self.medical_knowledge)
+        documents = text_splitter.create_documents(medical_knowledge)
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-mpnet-base-v2"
         )
-        self.vectorstore = FAISS.from_documents(documents, embeddings)
+
+        # Store the vector store in a different way to avoid field validation issues
+        self._vectorstore = FAISS.from_documents(documents, embeddings)
 
     def get_relevant_documents(self, query: str) -> List[str]:
         """Retrieve relevant medical context"""
-        docs = self.vectorstore.similarity_search(query, k=3)
+        docs = self._vectorstore.similarity_search(query, k=3)
         return [doc.page_content for doc in docs]
+
+    async def aget_relevant_documents(self, query: str) -> List[str]:
+        """Async version of get_relevant_documents"""
+        return self.get_relevant_documents(query)
 
 
 class UnifiedModelClient:
@@ -85,8 +91,12 @@ class UnifiedModelClient:
                 )
             else:
                 # Use transformers pipeline for other model formats
-                tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-
+                tokenizer = AutoTokenizer.from_pretrained(
+                    self.model_path,
+                    use_fast=False,
+                    trust_remote_code=True,
+                    legacy=False
+                )
                 # Configure quantization
                 quantization_config = BitsAndBytesConfig(
                     load_in_4bit=True,
