@@ -382,6 +382,76 @@ function setupVisualizationForm() {
     }
 }
 
+// Update your JavaScript to use the new endpoints
+async function loadModelResults(modelName) {
+    try {
+        const response = await fetch(`/api/evaluation/${modelName}`);
+        const data = await response.json();
+        displayResults(data);
+    } catch (error) {
+        console.error('Error loading model results:', error);
+    }
+}
+
+async function loadAvailableModels() {
+    try {
+        const response = await fetch('/api/models/available');
+        const data = await response.json();
+        populateModelDropdowns(data.models);
+    } catch (error) {
+        console.error('Error loading available models:', error);
+    }
+}
+
+async function compareSelectedModels() {
+    const model1 = document.getElementById('model1-select').value;
+    const model2 = document.getElementById('model2-select').value;
+
+    try {
+        const response = await fetch(`/api/compare-models?models=${model1}&models=${model2}`);
+        const data = await response.json();
+        displayComparisonResults(data);
+    } catch (error) {
+        console.error('Error comparing models:', error);
+    }
+}
+
+function displayResults(results) {
+    const container = document.getElementById('results-container');
+
+    if (results.error) {
+        container.innerHTML = `<div class="error">${results.error}</div>`;
+        return;
+    }
+
+    const metrics = results.evaluation_results?.metrics || {};
+
+    container.innerHTML = `
+        <h2>Evaluation Results: ${results.model}</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h3>Accuracy</h3>
+                <div class="metric-value">${(metrics.accuracy * 100).toFixed(1)}%</div>
+            </div>
+            <div class="metric-card">
+                <h3>Hallucination Rate</h3>
+                <div class="metric-value">${(metrics.hallucination_rate * 100).toFixed(1)}%</div>
+            </div>
+            <div class="metric-card">
+                <h3>Confidence</h3>
+                <div class="metric-value">${(metrics.confidence * 100).toFixed(1)}%</div>
+            </div>
+        </div>
+        
+        <h3>Visualizations</h3>
+        <div class="visualizations">
+            <img src="/api/visualization/${results.model}/accuracy_bar" alt="Accuracy Chart" class="viz-image">
+            <img src="/api/visualization/${results.model}/hallucination_rate_bar" alt="Hallucination Chart" class="viz-image">
+            <img src="/api/visualization/${results.model}/radar" alt="Radar Chart" class="viz-image">
+        </div>
+    `;
+}
+
 // Handle recent evaluations display
 function handleRecentEvaluations() {
     const container = document.getElementById('recent-evals-container');

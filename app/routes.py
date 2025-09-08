@@ -1,8 +1,11 @@
-# routes.py - Simplified routes for hallucination evaluation
 from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
-from typing import List
+from typing import List, Dict, Any
+import json
+import os
+import glob
+from datetime import datetime
 
 from .clients import ModelFactory
 from .evaluators import HallucinationEvaluator, generate_improvement_suggestions
@@ -11,219 +14,154 @@ from .data import load_test_prompts, load_baseline
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
+# Directory where evaluation results are stored
+RESULTS_DIR = "evaluation_results"
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
-@router.post("/api/evaluate")
-async def evaluate_model(
-        model_name: str = Form(...),
-        dataset: str = Form("pubmed_qa"),
-        sample_count: int = Form(5)
-):
-    """Evaluate a single model for hallucinations"""
+# Directory for pre-generated visualizations
+VISUALIZATION_DIR = "visualizations"
+os.makedirs(VISUALIZATION_DIR, exist_ok=True)
+
+
+@router.get("/api/evaluation/{model_name}")
+async def get_evaluation_results(model_name: str):
+    """Get evaluation results for a specific model from downloaded files"""
     try:
-        # Get model client
-        client = ModelFactory.get_client(model_name)
+        # Look for the comprehensive results file
+        pattern = os.path.join(RESULTS_DIR, f"{model_name}_comprehensive_results.json")
+        files = glob.glob(pattern)
 
-        # Load test prompts
-        prompts = load_test_prompts(dataset, min(sample_count, 10))  # Reduced for local models
+        if not files:
+            # Fallback to UI export data
+            pattern = os.path.join(RESULTS_DIR, f"{model_name}_ui_export_data.json")
+            files = glob.glob(pattern)
 
-        # Evaluate with hallucination-focused metrics
-        evaluator = HallucinationEvaluator()
-        results = await evaluator.evaluate_model(client, prompts, dataset, sample_count)
+        if not files:
+            raise HTTPException(status_code=404, detail=f"No evaluation results found for {model_name}")
 
-        # Get baseline for comparison
-        baseline = load_baseline(model_name, dataset)
+        # Use the most recent file
+        latest_file = max(files, key=os.path.getctime)
 
-        # Calculate improvement metrics
-        hallucination_reduction = (
-            ((baseline["hallucination_rate"] - results["metrics"]["hallucination_rate"]) / baseline[
-                "hallucination_rate"] * 100)
-            if baseline["hallucination_rate"] > 0
-            else 0
-        )
+        with open(latest_file, "r") as f:
+            results = json.load(f)
 
-        # Prepare response data
-        response_data = {
-            "model": model_name,
-            "dataset": dataset,
-            "sample_count": sample_count,
-            "metrics": results["metrics"],
-            "baseline": baseline,
-            "improvement": {
-                "hallucination_reduction": hallucination_reduction,
-                "accuracy_improvement": (
-                            (results["metrics"]["accuracy"] - baseline["accuracy"]) / baseline["accuracy"] * 100)
-                if baseline["accuracy"] > 0
-                else 0,
-            },
-            "suggestions": generate_improvement_suggestions(results["metrics"]),
-            "sample_responses": results.get("sample_responses", [])[:3],
-        }
-
-        return response_data
+        return results
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error loading results: {str(e)}")
 
 
-@router.post("/api/compare")
-async def compare_models(
-        model1: str = Form(...),
-        model2: str = Form(...),
-        dataset: str = Form("pubmed_qa"),
-        sample_count: int = Form(5)
-):
-    """Compare two models for hallucinations"""
-    try:
-        prompts = load_test_prompts(dataset, min(sample_count, 10))
-
-        all_results = {}
-        evaluator = HallucinationEvaluator()
-
-        for model_name in [model1, model2]:
-            try:
-                client = ModelFactory.get_client(model_name)
-                results = await evaluator.evaluate_model(client, prompts, dataset, sample_count)
-
-                all_results[model_name] = {
-                    "metrics": results["metrics"],
-                    "sample_responses": results.get("sample_responses", [])[:2],
-                }
-            except Exception as e:
-                all_results[model_name] = {"error": str(e), "metrics": None}
-
-        # Generate comparative analysis
-        comparison = generate_comparison_metrics(all_results)
-
-        comparison_data = {
-            "models": all_results,
-            "comparison": comparison,
-            "prompt_count": len(prompts),
-            "dataset_stats": get_dataset_stats(prompts),
-        }
-
-        return comparison_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/api/visualize")
-async def generate_visualization(
-        visualization_type: str,
-        metric: str,
-        models: List[str] = None
-):
-    """Generate visualization data for hallucination metrics"""
-    try:
-        if models is None:
-            models = ["llama-2-7b", "mistral-7b", "qwen-7b"]
-
-        # Generate visualization data
-        chart_data = prepare_chart_data(visualization_type, metric, models)
-
-        return chart_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/api/models")
+@router.get("/api/models/available")
 async def get_available_models():
-    """Get list of available local models"""
+    """Get list of models that have evaluation results"""
+    models = set()
+
+    # Look for all result files
+    for pattern in ["*.json"]:
+        for filename in glob.glob(os.path.join(RESULTS_DIR, pattern)):
+            basename = os.path.basename(filename)
+            # Extract model name from filename (e.g., "mistral-7b_comprehensive_results.json" -> "mistral-7b")
+            model_name = basename.split('_')[0]
+            models.add(model_name)
+
+    return {"models": sorted(list(models))}
+
+
+@router.get("/api/visualization/{model_name}/{viz_type}")
+async def get_visualization(model_name: str, viz_type: str):
+    """Get pre-generated visualization images"""
+    viz_files = {
+        "accuracy_bar": "accuracy_bar_chart.png",
+        "hallucination_rate_bar": "hallucination_rate_bar_chart.png",
+        "confidence_bar": "confidence_bar_chart.png",
+        "radar": "radar_chart.png",
+        "comparison_table": "comparison_table.html"
+    }
+
+    if viz_type not in viz_files:
+        raise HTTPException(status_code=404, detail=f"Visualization type {viz_type} not found")
+
+    file_path = os.path.join(VISUALIZATION_DIR, viz_files[viz_type])
+
+    if not os.path.exists(file_path):
+        # Try to find model-specific visualizations
+        model_viz_path = os.path.join(VISUALIZATION_DIR, f"{model_name}_{viz_files[viz_type]}")
+        if os.path.exists(model_viz_path):
+            file_path = model_viz_path
+        else:
+            raise HTTPException(status_code=404, detail=f"Visualization file not found")
+
+    if viz_type == "comparison_table":
+        with open(file_path, "r") as f:
+            content = f.read()
+        return {"html": content}
+    else:
+        return FileResponse(file_path)
+
+
+@router.post("/api/upload-results")
+async def upload_evaluation_results():
+    """Endpoint to handle uploaded evaluation results"""
+    # This would handle file uploads in a real implementation
+    return {"message": "Upload endpoint ready - implement file handling as needed"}
+
+
+@router.get("/api/model-metrics/{model_name}")
+async def get_model_metrics(model_name: str):
+    """Get just the metrics for a model"""
     try:
-        models = ModelFactory.get_available_models()
-        return {"models": models}
+        results = await get_evaluation_results(model_name)
+        return {
+            "model": model_name,
+            "metrics": results.get("evaluation_results", {}).get("metrics", {}),
+            "timestamp": results.get("evaluation_date", datetime.now().isoformat())
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@router.get("/api/compare-models")
+async def compare_models(models: List[str]):
+    """Compare multiple models using pre-generated results"""
+    comparison_data = {}
+
+    for model_name in models:
+        try:
+            metrics = await get_model_metrics(model_name)
+            comparison_data[model_name] = metrics
+        except Exception as e:
+            comparison_data[model_name] = {"error": str(e)}
+
+    # Generate comparative analysis
+    comparison_metrics = generate_comparison_metrics(comparison_data)
+
+    return {
+        "models": comparison_data,
+        "comparison": comparison_metrics
+    }
 
 
-# Helper functions
-def generate_comparison_metrics(all_results: dict) -> dict:
+def generate_comparison_metrics(models_data: Dict[str, Any]) -> Dict[str, Any]:
     """Generate comparative metrics between models"""
     comparison = {}
-    metrics = ["accuracy", "hallucination_rate", "confidence"]
+    metrics_to_compare = ["accuracy", "hallucination_rate", "confidence"]
 
-    for metric in metrics:
-        values = {
-            model: results["metrics"][metric]
-            for model, results in all_results.items()
-            if results.get("metrics")
-        }
+    for metric in metrics_to_compare:
+        values = {}
+
+        for model_name, data in models_data.items():
+            if "metrics" in data and metric in data["metrics"]:
+                values[model_name] = data["metrics"][metric]
 
         if values:
             comparison[metric] = {
-                "best_model": max(values.items(), key=lambda x: x[1])[0] if metric == "accuracy" else
+                "best_model": max(values.items(), key=lambda x: x[1])[0] if metric != "hallucination_rate" else
                 min(values.items(), key=lambda x: x[1])[0],
-                "worst_model": min(values.items(), key=lambda x: x[1])[0] if metric == "accuracy" else
+                "worst_model": min(values.items(), key=lambda x: x[1])[0] if metric != "hallucination_rate" else
                 max(values.items(), key=lambda x: x[1])[0],
                 "range": max(values.values()) - min(values.values()),
-                "mean": sum(values.values()) / len(values),
-                "values": values,
+                "average": sum(values.values()) / len(values),
+                "values": values
             }
 
     return comparison
-
-
-def get_dataset_stats(prompts: list) -> dict:
-    """Calculate basic statistics about the evaluation dataset"""
-    ref_lengths = [len(p["original_reference"]) for p in prompts]
-    prompt_lengths = [len(p["original_prompt"]) for p in prompts]
-
-    return {
-        "prompt_length": {
-            "mean": sum(prompt_lengths) / len(prompt_lengths) if prompt_lengths else 0,
-            "max": max(prompt_lengths) if prompt_lengths else 0,
-            "min": min(prompt_lengths) if prompt_lengths else 0,
-        },
-        "reference_length": {
-            "mean": sum(ref_lengths) / len(ref_lengths) if ref_lengths else 0,
-            "max": max(ref_lengths) if ref_lengths else 0,
-            "min": min(ref_lengths) if ref_lengths else 0,
-        },
-        "total_prompts": len(prompts),
-    }
-
-
-def prepare_chart_data(visualization_type: str, metric: str, models: List[str]) -> dict:
-    """Prepare chart data for visualization"""
-    # Demo data - in real implementation, this would come from actual evaluations
-    demo_data = {
-        "llama-2-7b": {"accuracy": 0.72, "hallucination_rate": 0.18, "confidence": 0.75},
-        "mistral-7b": {"accuracy": 0.68, "hallucination_rate": 0.22, "confidence": 0.70},
-        "qwen-7b": {"accuracy": 0.75, "hallucination_rate": 0.15, "confidence": 0.78},
-        "meditron-7b": {"accuracy": 0.78, "hallucination_rate": 0.12, "confidence": 0.82},
-        "biomedgpt": {"accuracy": 0.82, "hallucination_rate": 0.08, "confidence": 0.88}
-    }
-
-    if visualization_type == "bar":
-        return {
-            "type": "bar",
-            "data": {
-                "labels": models,
-                "datasets": [{
-                    "label": metric.replace("_", " ").title(),
-                    "data": [demo_data[model].get(metric, 0) for model in models],
-                    "backgroundColor": ["rgba(54, 162, 235, 0.6)" for _ in models],
-                    "borderColor": ["rgba(54, 162, 235, 1)" for _ in models],
-                    "borderWidth": 1
-                }]
-            },
-            "options": {
-                "responsive": True,
-                "plugins": {
-                    "title": {
-                        "display": True,
-                        "text": f"{metric.replace('_', ' ').title()} Comparison",
-                        "font": {"size": 16}
-                    }
-                },
-                "scales": {
-                    "y": {"beginAtZero": True, "max": 1}
-                }
-            }
-        }
-    else:
-        return {"error": "Unsupported visualization type"}

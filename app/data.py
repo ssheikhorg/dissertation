@@ -1,7 +1,16 @@
-# data.py - Data loading and processing
-import pandas as pd
 from typing import List, Dict, Any
-import json
+
+
+class ModelsEnum:
+    """Enum for supported models"""
+    LLAMA_2_7B = "llama-2-7b"
+    MISTRAL_7B = "mistral-7b"
+    QWEN_7B = "qwen-7b"
+    MEDITRON_7B = "meditron-7b"
+    BIOMEDGPT = "biomedgpt"
+    GPT_4 = "gpt-4"
+    CLAUDE_3_OPUS = "claude-3-opus"
+    GROK = "grok"
 
 
 class DatasetLoader:

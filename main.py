@@ -7,11 +7,6 @@ from app.routes import router
 
 app = FastAPI()
 
-# Ensure directories exist
-os.makedirs("data", exist_ok=True)
-os.makedirs("data/baselines", exist_ok=True)
-os.makedirs("templates", exist_ok=True)
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(router)
 

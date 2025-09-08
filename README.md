@@ -58,5 +58,5 @@ This project uses `pyenv` for Python environment management.
 [Add your license information here]
 
 ## Contact
-- [Shahin R Shapon](ssheikhorg@hotmail.com)
+- [Sheikh Shapon](ssheikhorg@hotmail.com)
 - [GitHub Profile](github.com/ssheikhorg)

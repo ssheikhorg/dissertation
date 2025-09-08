@@ -91,6 +91,7 @@
     <a href="#" onclick="showPage('evaluate')">Single Model Evaluation</a>
     <a href="#" onclick="showPage('compare')">Model Comparison</a>
     <a href="#" onclick="showPage('visualize')">Visualizations</a>
+    <a href="#" onclick="showPage('saved-results')">Saved Results</a>
 </nav>
 <main>
     <!-- Home Page -->
@@ -257,6 +258,31 @@
             </div>
 
             <div id="results-comp" class="results-container"></div>
+        </div>
+    </div>
+
+    <!-- Saved results section -->
+    <div id="saved-results-page" class="page">
+        <div class="saved-results-container">
+            <h1>Saved Evaluation Results</h1>
+
+            <div class="results-actions">
+                <button onclick="refreshResults()" class="primary-button">Refresh Results</button>
+                <button onclick="loadAllResults()" class="secondary-button">Load All Results</button>
+            </div>
+
+            <div class="filter-section">
+                <label for="model-filter">Filter by Model:</label>
+                <select id="model-filter" onchange="filterResults()">
+                    <option value="all">All Models</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+
+            <h3>Saved Evaluation Results</h3>
+            <div id="saved-results-list">
+                <p>Loading saved results...</p>
+            </div>
         </div>
     </div>
 
@@ -484,6 +510,221 @@
         }
     }
 
+    // Load saved results
+    async function loadSavedResults() {
+        const resultsList = document.getElementById('saved-results-list');
+        const modelFilter = document.getElementById('model-filter');
+
+        try {
+            const response = await fetch('/api/saved-results');
+            const data = await response.json();
+
+            if (data.results.length === 0) {
+                resultsList.innerHTML = '<p>No saved results yet. Run evaluations to see results here.</p>';
+                return;
+            }
+
+            // Populate model filter
+            const models = [...new Set(data.results.map(r => r.model))];
+            modelFilter.innerHTML = '<option value="all">All Models</option>' +
+                models.map(model => `<option value="${model}">${model}</option>`).join('');
+
+            // Display results
+            displayResults(data.results);
+        } catch (error) {
+            resultsList.innerHTML = `
+                <div class="error-message">
+                    Error loading results: ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    // Display results with filtering
+    function displayResults(results, filterModel = 'all') {
+        const resultsList = document.getElementById('saved-results-list');
+
+        const filteredResults = filterModel === 'all'
+            ? results
+            : results.filter(r => r.model === filterModel);
+
+        if (filteredResults.length === 0) {
+            resultsList.innerHTML = '<p>No results found for the selected filter.</p>';
+            return;
+        }
+
+        resultsList.innerHTML = filteredResults.map(result => `
+            <div class="saved-result-card">
+                <h4>${result.model}</h4>
+                <p><strong>Dataset:</strong> ${result.dataset}</p>
+                <p><strong>Samples:</strong> ${result.sample_count}</p>
+                <p><strong>Date:</strong> ${new Date(result.date).toLocaleString()}</p>
+                <p><strong>Accuracy:</strong> ${(result.metrics.accuracy * 100).toFixed(1)}%</p>
+                <p><strong>Hallucination Rate:</strong> ${(result.metrics.hallucination_rate * 100).toFixed(1)}%</p>
+                <div class="result-actions">
+                    <button onclick="viewSavedResult('${result.model}', '${result.dataset}')">View Details</button>
+                    <button onclick="useForVisualization('${result.model}')">Use in Visualization</button>
+                    <button onclick="deleteSavedResult('${result.model}', '${result.dataset}')" class="delete-btn">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Filter results by model
+    function filterResults() {
+        const modelFilter = document.getElementById('model-filter');
+        const selectedModel = modelFilter.value;
+
+        // Reload results with filter
+        fetch('/api/saved-results')
+            .then(response => response.json())
+            .then(data => displayResults(data.results, selectedModel))
+            .catch(error => console.error('Error filtering results:', error));
+    }
+
+    // View saved result details
+    async function viewSavedResult(modelName, dataset) {
+        try {
+            const response = await fetch(`/api/saved-result/${modelName}?dataset=${dataset}`);
+            const result = await response.json();
+
+            // Format and display the result
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                    <h2>Evaluation Results: ${result.model}</h2>
+                    <p><strong>Dataset:</strong> ${result.dataset}</p>
+                    <p><strong>Evaluation Date:</strong> ${new Date(result.evaluation_date).toLocaleString()}</p>
+
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <h3>Accuracy</h3>
+                            <div class="metric-value">${(result.metrics.accuracy * 100).toFixed(1)}%</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Hallucination Rate</h3>
+                            <div class="metric-value">${(result.metrics.hallucination_rate * 100).toFixed(1)}%</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Confidence</h3>
+                            <div class="metric-value">${(result.metrics.confidence * 100).toFixed(1)}%</div>
+                        </div>
+                    </div>
+
+                    ${result.improvement ? `
+                    <h3>Improvement vs Baseline</h3>
+                    <div class="improvement-metrics">
+                        <p>Accuracy Improvement: <span class="${result.improvement.accuracy_improvement > 0 ? 'positive' : 'negative'}">${result.improvement.accuracy_improvement > 0 ? '+' : ''}${result.improvement.accuracy_improvement.toFixed(1)}%</span></p>
+                        <p>Hallucination Reduction: <span class="${result.improvement.hallucination_reduction > 0 ? 'positive' : 'negative'}">${result.improvement.hallucination_reduction > 0 ? '+' : ''}${result.improvement.hallucination_reduction.toFixed(1)}%</span></p>
+                    </div>
+                    ` : ''}
+
+                    <h3>Sample Responses</h3>
+                    ${result.sample_responses ? result.sample_responses.map((response, index) => `
+                        <div class="sample-response">
+                            <h4>Sample ${index + 1}</h4>
+                            <p><strong>Prompt:</strong> ${response.prompt}</p>
+                            <p><strong>Reference:</strong> ${response.reference}</p>
+                            <p><strong>Model Response:</strong> ${response.response}</p>
+                            <p><strong>Accuracy:</strong> ${(response.accuracy * 100).toFixed(1)}%</p>
+                            <p><strong>Hallucination Score:</strong> ${(response.hallucination_score * 100).toFixed(1)}%</p>
+                        </div>
+                    `).join('') : '<p>No sample responses available</p>'}
+                </div>
+            `;
+            document.body.appendChild(modal);
+        } catch (error) {
+            alert(`Error viewing result: ${error.message}`);
+        }
+    }
+
+    // Use result for visualization
+    function useForVisualization(modelName) {
+        // Switch to visualization page and pre-select this model
+        showPage('visualize');
+
+        // Add model to visualization selection
+        const modelsSelect = document.getElementById('models-select');
+        const options = Array.from(modelsSelect.options);
+        const modelOption = options.find(opt => opt.value === modelName);
+
+        if (modelOption) {
+            modelOption.selected = true;
+        } else {
+            // Add model to selection if not already there
+            const newOption = new Option(modelName, modelName, false, true);
+            modelsSelect.add(newOption);
+        }
+
+        // Trigger visualization generation
+        setTimeout(() => {
+            document.querySelector('#visualize-page button').click();
+        }, 500);
+    }
+
+    // Delete saved result
+    async function deleteSavedResult(modelName, dataset) {
+        if (!confirm(`Are you sure you want to delete all saved results for ${modelName}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/saved-result/${modelName}?dataset=${dataset}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                loadSavedResults(); // Refresh the list
+            } else {
+                alert('Error deleting result');
+            }
+        } catch (error) {
+            alert(`Error deleting result: ${error.message}`);
+        }
+    }
+
+    // Refresh results
+    function refreshResults() {
+        loadSavedResults();
+    }
+
+    // Load all results (no filter)
+    function loadAllResults() {
+        fetch('/api/saved-results')
+            .then(response => response.json())
+            .then(data => displayResults(data.results, 'all'))
+            .catch(error => console.error('Error loading results:', error));
+    }
+
+    // Update DOMContentLoaded to load saved results
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add this to your existing DOMContentLoaded function
+        if (window.location.pathname === '/saved-results') {
+            loadSavedResults();
+        }
+    });
+
+    // Update showPage function
+    function showPage(pageId) {
+        // Hide all pages
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active');
+        });
+
+        // Show selected page
+        document.getElementById(`${pageId}-page`).classList.add('active');
+
+        // Update URL without reloading
+        const url = pageId === 'home' ? '/' : `/${pageId}`;
+        window.history.pushState({}, '', url);
+
+        // Load saved results if on saved-results page
+        if (pageId === 'saved-results') {
+            loadSavedResults();
+        }
+    }
     // Chart rendering functions
     function renderBarChart(data, container) {
         const canvas = document.createElement('canvas');
