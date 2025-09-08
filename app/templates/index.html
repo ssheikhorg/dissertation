@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Model Evaluation Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="/staticcss" rel="stylesheet">
+</head>
+<body>
+<nav>
+    <a href="#" onclick="showPage('home')">Home</a>
+    <a href="#" onclick="showPage('evaluate')">Single Model Evaluation</a>
+    <a href="#" onclick="showPage('compare')">Model Comparison</a>
+    <a href="#" onclick="showPage('saved-results')">Saved Results</a>
+</nav>
+<main>
+    <!-- Home Page -->
+    <div id="home-page" class="page active">
+        <div class="hero">
+            <h1>Local Model Evaluation Dashboard</h1>
+            <p>Evaluate and compare local LLM models with focus on hallucination detection</p>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <a href="#" onclick="showPage('evaluate')">
+                    <h2>Single Model Evaluation</h2>
+                    <p>Test individual model performance with detailed metrics</p>
+                </a>
+            </div>
+
+            <div class="feature-card">
+                <a href="#" onclick="showPage('compare')">
+                    <h2>Model Comparison</h2>
+                    <p>Compare multiple models side-by-side</p>
+                </a>
+            </div>
+
+            <div class="feature-card">
+                <a href="#" onclick="showPage('saved-results')">
+                    <h2>Saved Results</h2>
+                    <p>View previously saved evaluation results</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="recent-evaluations">
+            <h2>Recent Evaluations</h2>
+            <div id="recent-evals-container">
+                <p>Loading recent evaluations...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Page -->
+    <div id="evaluate-page" class="page">
+        <div class="evaluation-container">
+            <h1>Model Evaluation</h1>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="model-select">Model:</label>
+                    <select id="model-select">
+                        <option value="">Select a model...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="sample-count-eval">Sample Count:</label>
+                    <input type="range" id="sample-count-eval" min="1" max="10" value="3">
+                    <span id="sample-count-value-eval">3</span>
+                </div>
+
+                <button onclick="loadModelEvaluation()" class="primary-button">
+                    Load Evaluation Results
+                </button>
+            </div>
+
+            <div class="loading loading-eval">
+                <div class="spinner"></div>
+                <p>Loading evaluation results...</p>
+            </div>
+
+            <div id="results-eval" class="results-container"></div>
+        </div>
+    </div>
+
+    <!-- Comparison Page -->
+    <div id="compare-page" class="page">
+        <div class="comparison-container">
+            <h1>Model Comparison</h1>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>Models to Compare:</label>
+                    <div class="model-selection">
+                        <select id="model1-select">
+                            <option value="">Select first model...</option>
+                        </select>
+                        <span>vs</span>
+                        <select id="model2-select">
+                            <option value="">Select second model...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button onclick="compareModels()" class="primary-button">
+                    Compare Models
+                </button>
+            </div>
+
+            <div class="loading loading-comp">
+                <div class="spinner"></div>
+                <p>Comparing models...</p>
+            </div>
+
+            <div id="results-comp" class="results-container"></div>
+        </div>
+    </div>
+
+    <!-- Saved results section -->
+    <div id="saved-results-page" class="page">
+        <div class="saved-results-container">
+            <h1>Saved Evaluation Results</h1>
+
+            <div class="results-actions">
+                <button onclick="loadAvailableModels()" class="primary-button">Refresh Models</button>
+            </div>
+
+            <div class="filter-section">
+                <label for="model-filter">Filter by Model:</label>
+                <select id="model-filter" onchange="filterResults()">
+                    <option value="all">All Models</option>
+                </select>
+            </div>
+
+            <h3>Available Evaluation Results</h3>
+            <div id="saved-results-list">
+                <p>Loading available results...</p>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <div class="footer-content">
+        <p>This Model Evaluation Dashboard was developed by <strong>Sheikh Shahin Shapon</strong> as part of his MSc
+            Dissertation on <em>"Hallucination Detection in Large Language Models for Medical Applications"</em></p>
+        <p>© 2024 Sheikh Shahin Shapon - All rights reserved</p>
+    </div>
+</footer>
+
+<script>
+    // Global state
+    let availableModels = [];
+    let allResults = [];
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAvailableModels();
+        setupEventListeners();
+        setInitialPage();
+    });
+
+    function setupEventListeners() {
+        // Sample count slider
+        const evalSlider = document.getElementById('sample-count-eval');
+        const evalValue = document.getElementById('sample-count-value-eval');
+
+        if (evalSlider && evalValue) {
+            evalSlider.addEventListener('input', () => {
+                evalValue.textContent = evalSlider.value;
+            });
+        }
+    }
+
+    function setInitialPage() {
+        const path = window.location.pathname;
+        let pageId = 'home';
+
+        if (path === '/evaluate') pageId = 'evaluate';
+        else if (path === '/compare') pageId = 'compare';
+        else if (path === '/saved-results') pageId = 'saved-results';
+
+        showPage(pageId);
+    }
+
+    function showPage(pageId) {
+        // Hide all pages
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active');
+        });
+
+        // Show selected page
+        document.getElementById(`${pageId}-page`).classList.add('active');
+
+        // Update URL without reloading
+        const url = pageId === 'home' ? '/' : `/${pageId}`;
+        window.history.pushState({}, '', url);
+
+        // Load data for specific pages
+        if (pageId === 'saved-results') {
+            loadAvailableModels();
+        }
+    }
+
+    async function loadAvailableModels() {
+        try {
+            const response = await fetch('/api/models/available');
+            const data = await response.json();
+
+            availableModels = data.models || [];
+            populateModelDropdowns(availableModels);
+
+            if (availableModels.length > 0) {
+                loadAllResults();
+            } else {
+                document.getElementById('saved-results-list').innerHTML =
+                    '<p>No evaluation results found. Please run evaluations first.</p>';
+            }
+        } catch (error) {
+            console.error('Error loading available models:', error);
+            document.getElementById('saved-results-list').innerHTML =
+                `<p class="error">Error loading models: ${error.message}</p>`;
+        }
+    }
+
+    function populateModelDropdowns(models) {
+        const dropdowns = [
+            'model-select',
+            'model1-select',
+            'model2-select',
+            'model-filter'
+        ];
+
+        dropdowns.forEach(dropdownId => {
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                // Clear existing options except the first one
+                const firstOption = dropdown.options[0];
+                dropdown.innerHTML = '';
+                if (firstOption) dropdown.appendChild(firstOption);
+
+                // Add model options
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    dropdown.appendChild(option);
+                });
+            }
+        });
+    }
+
+    async function loadAllResults() {
+        try {
+            const results = [];
+
+            // Load results for each model
+            for (const model of availableModels) {
+                try {
+                    const response = await fetch(`/api/evaluation/${model}`);
+                    const data = await response.json();
+                    results.push({
+                        model: model,
+                        data: data,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    console.error(`Error loading results for ${model}:`, error);
+                }
+            }
+
+            allResults = results;
+            displayResults(results);
+        } catch (error) {
+            console.error('Error loading results:', error);
+            document.getElementById('saved-results-list').innerHTML =
+                `<p class="error">Error loading results: ${error.message}</p>`;
+        }
+    }
+
+    function displayResults(results, filterModel = 'all') {
+        const resultsList = document.getElementById('saved-results-list');
+
+        const filteredResults = filterModel === 'all'
+            ? results
+            : results.filter(r => r.model === filterModel);
+
+        if (filteredResults.length === 0) {
+            resultsList.innerHTML = '<p>No results found for the selected filter.</p>';
+            return;
+        }
+
+        resultsList.innerHTML = filteredResults.map(result => {
+            const metrics = result.data.metrics || result.data.evaluation_results?.metrics || {};
+
+            return `
+                <div class="saved-result-card">
+                    <h4>${result.model}</h4>
+                    <p><strong>Loaded:</strong> ${new Date(result.timestamp).toLocaleString()}</p>
+                    ${metrics.accuracy ? `<p><strong>Accuracy:</strong> ${(metrics.accuracy * 100).toFixed(1)}%</p>` : ''}
+                    ${metrics.hallucination_rate ? `<p><strong>Hallucination Rate:</strong> ${(metrics.hallucination_rate * 100).toFixed(1)}%</p>` : ''}
+                    ${metrics.confidence ? `<p><strong>Confidence:</strong> ${(metrics.confidence * 100).toFixed(1)}%</p>` : ''}
+                    <div class="result-actions">
+                        <button onclick="viewModelDetails('${result.model}')">View Details</button>
+                        <button onclick="useForComparison('${result.model}')">Use in Comparison</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function filterResults() {
+        const modelFilter = document.getElementById('model-filter');
+        const selectedModel = modelFilter.value;
+        displayResults(allResults, selectedModel);
+    }
+
+    async function loadModelEvaluation() {
+        const modelSelect = document.getElementById('model-select');
+        const modelName = modelSelect.value;
+        const loadingElem = document.querySelector('.loading-eval');
+        const resultsElem = document.getElementById('results-eval');
+
+        if (!modelName) {
+            resultsElem.innerHTML = '<p class="error">Please select a model first.</p>';
+            return;
+        }
+
+        loadingElem.style.display = 'block';
+        resultsElem.innerHTML = '';
+
+        try {
+            const response = await fetch(`/api/evaluation/${modelName}`);
+            const data = await response.json();
+
+            formatEvaluationResults(data, 'results-eval');
+        } catch (error) {
+            resultsElem.innerHTML = `
+                <div class="error-message">
+                    <h3>Error</h3>
+                    <p>Failed to load evaluation results: ${error.message}</p>
+                </div>
+            `;
+        } finally {
+            loadingElem.style.display = 'none';
+        }
+    }
+
+    async function compareModels() {
+        const model1Select = document.getElementById('model1-select');
+        const model2Select = document.getElementById('model2-select');
+        const model1 = model1Select.value;
+        const model2 = model2Select.value;
+        const loadingElem = document.querySelector('.loading-comp');
+        const resultsElem = document.getElementById('results-comp');
+
+        if (!model1 || !model2) {
+            resultsElem.innerHTML = '<p class="error">Please select both models to compare.</p>';
+            return;
+        }
+
+        if (model1 === model2) {
+            resultsElem.innerHTML = '<p class="error">Please select two different models to compare.</p>';
+            return;
+        }
+
+        loadingElem.style.display = 'block';
+        resultsElem.innerHTML = '';
+
+        try {
+            const response = await fetch(`/api/compare?model1=${model1}&model2=${model2}`);
+            const data = await response.json();
+
+            formatComparisonResults(data, 'results-comp');
+        } catch (error) {
+            resultsElem.innerHTML = `
+                <div class="error-message">
+                    <h3>Error</h3>
+                    <p>Failed to compare models: ${error.message}</p>
+                </div>
+            `;
+        } finally {
+            loadingElem.style.display = 'none';
+        }
+    }
+
+    function formatEvaluationResults(data, targetId) {
+        const container = document.getElementById(targetId);
+        const metrics = data.metrics || data.evaluation_results?.metrics || {};
+        const sampleResponses = data.sample_responses || data.evaluation_results?.sample_responses || [];
+
+        container.innerHTML = `
+            <h2>Evaluation Results: ${data.model || 'Unknown Model'}</h2>
+
+            <div class="metrics-grid">
+                ${metrics.accuracy ? `
+                <div class="metric-card">
+                    <h3>Accuracy</h3>
+                    <div class="metric-value">${(metrics.accuracy * 100).toFixed(1)}%</div>
+                </div>
+                ` : ''}
+
+                ${metrics.hallucination_rate ? `
+                <div class="metric-card">
+                    <h3>Hallucination Rate</h3>
+                    <div class="metric-value">${(metrics.hallucination_rate * 100).toFixed(1)}%</div>
+                </div>
+                ` : ''}
+
+                ${metrics.confidence ? `
+                <div class="metric-card">
+                    <h3>Confidence</h3>
+                    <div class="metric-value">${(metrics.confidence * 100).toFixed(1)}%</div>
+                </div>
+                ` : ''}
+
+                ${metrics.response_length ? `
+                <div class="metric-card">
+                    <h3>Response Length</h3>
+                    <div class="metric-value">${metrics.response_length.toFixed(0)} chars</div>
+                </div>
+                ` : ''}
+            </div>
+
+            ${sampleResponses.length > 0 ? `
+            <h3>Sample Responses</h3>
+            <div class="sample-responses">
+                ${sampleResponses.slice(0, 3).map((response, index) => `
+                    <div class="sample-response">
+                        <h4>Sample ${index + 1}</h4>
+                        <p><strong>Prompt:</strong> ${response.prompt || 'N/A'}</p>
+                        <p><strong>Reference:</strong> ${response.reference || 'N/A'}</p>
+                        <p><strong>Model Response:</strong> ${response.response || 'N/A'}</p>
+                        ${response.accuracy ? `<p><strong>Accuracy:</strong> ${(response.accuracy * 100).toFixed(1)}%</p>` : ''}
+                        ${response.hallucination_score ? `<p><strong>Hallucination Score:</strong> ${(response.hallucination_score * 100).toFixed(1)}%</p>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+        `;
+    }
+
+    function formatComparisonResults(data, targetId) {
+        const container = document.getElementById(targetId);
+
+        container.innerHTML = `
+            <h2>Model Comparison Results</h2>
+
+            ${data.comparison ? `
+            <div class="comparison-metrics">
+                ${Object.entries(data.comparison).map(([metric, comparison]) => `
+                    <div class="metric-card">
+                        <h3>${metric.replace('_', ' ').toUpperCase()}</h3>
+                        <p><strong>Best:</strong> ${comparison.best_model} (${(comparison.values[comparison.best_model] * 100).toFixed(1)}%)</p>
+                        <p><strong>Worst:</strong> ${comparison.worst_model} (${(comparison.values[comparison.worst_model] * 100).toFixed(1)}%)</p>
+                        <p><strong>Difference:</strong> ${(comparison.range * 100).toFixed(1)}%</p>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
+            <h3>Detailed Results</h3>
+            <div class="model-results">
+                ${Object.entries(data.models).map(([model, modelData]) => `
+                    <div class="model-result">
+                        <h4>${model}</h4>
+                        ${modelData.metrics ? `
+                            ${modelData.metrics.accuracy ? `<p>Accuracy: ${(modelData.metrics.accuracy * 100).toFixed(1)}%</p>` : ''}
+                            ${modelData.metrics.hallucination_rate ? `<p>Hallucination Rate: ${(modelData.metrics.hallucination_rate * 100).toFixed(1)}%</p>` : ''}
+                            ${modelData.metrics.confidence ? `<p>Confidence: ${(modelData.metrics.confidence * 100).toFixed(1)}%</p>` : ''}
+                        ` : modelData.error ? `
+                            <p class="error-message">Error: ${modelData.error}</p>
+                        ` : `
+                            <p>No metrics available</p>
+                        `}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function viewModelDetails(modelName) {
+        const result = allResults.find(r => r.model === modelName);
+        if (!result) return;
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="close" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                <h2>Evaluation Details: ${modelName}</h2>
+                <pre>${JSON.stringify(result.data, null, 2)}</pre>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    function useForComparison(modelName) {
+        showPage('compare');
+
+        // Set the model in the comparison dropdowns
+        const model1Select = document.getElementById('model1-select');
+        const model2Select = document.getElementById('model2-select');
+
+        if (model1Select.value === '') {
+            model1Select.value = modelName;
+        } else if (model2Select.value === '') {
+            model2Select.value = modelName;
+        }
+    }
+
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function(event) {
+        const path = window.location.pathname;
+        let pageId = 'home';
+
+        if (path === '/evaluate') pageId = 'evaluate';
+        else if (path === '/compare') pageId = 'compare';
+        else if (path === '/saved-results') pageId = 'saved-results';
+
+        showPage(pageId);
+    });
+</script>
+</body>
+</html>

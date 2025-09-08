@@ -1,11 +1,17 @@
-/* Global styles that apply to all pages */
+/* Global styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: #333;
-    margin: 0;
-    padding: 0;
     background-color: #f8f9fa;
+    padding: 0;
+    margin: 0;
 }
 
 nav {
@@ -13,6 +19,7 @@ nav {
     padding: 1rem;
     display: flex;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 nav a {
@@ -32,6 +39,7 @@ main {
     padding: 2rem;
     max-width: 1400px;
     margin: 0 auto;
+    min-height: calc(100vh - 200px);
 }
 
 /* Page management */
@@ -65,10 +73,6 @@ main {
     padding: 2rem;
 }
 
-.htmx-request .loading {
-    display: block;
-}
-
 /* Buttons */
 .primary-button {
     background-color: #4CAF50;
@@ -77,12 +81,27 @@ main {
     padding: 0.75rem 1.5rem;
     border-radius: 4px;
     cursor: pointer;
-    align-self: end;
     transition: background-color 0.2s;
+    font-size: 1rem;
 }
 
 .primary-button:hover {
     background-color: #45a049;
+}
+
+.secondary-button {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1rem;
+}
+
+.secondary-button:hover {
+    background-color: #5a6268;
 }
 
 /* Control groups */
@@ -90,11 +109,56 @@ main {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
 .control-group label {
     font-weight: 500;
     color: #555;
+}
+
+.controls {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+}
+
+/* Range input styling */
+input[type="range"] {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #ddd;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+#sample-count-value-eval,
+#sample-count-value-comp {
+    font-weight: bold;
+    color: #4CAF50;
+    margin-left: 0.5rem;
+}
+
+/* Select dropdown styling */
+select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 1rem;
+    width: 100%;
 }
 
 /* Index page specific styles */
@@ -109,6 +173,7 @@ main {
 .hero h1 {
     margin-top: 0;
     color: #2c3e50;
+    margin-bottom: 1rem;
 }
 
 .features {
@@ -141,6 +206,7 @@ main {
 .feature-card h2 {
     margin-top: 0;
     color: #2c3e50;
+    margin-bottom: 0.5rem;
 }
 
 .recent-evaluations {
@@ -155,71 +221,13 @@ main {
     color: #2c3e50;
     border-bottom: 1px solid #eee;
     padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
 }
 
 /* Evaluation page specific styles */
-.evaluation-container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.evaluation-container h1 {
-    color: #2c3e50;
-    margin-bottom: 1.5rem;
-}
-
-.evaluation-container .controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-/* Range input styling */
-input[type="range"] {
-    width: 100%;
-    height: 8px;
-    border-radius: 4px;
-    background: #ddd;
-    outline: none;
-    -webkit-appearance: none;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #4CAF50;
-    cursor: pointer;
-}
-
-#sample-count-value-eval,
-#sample-count-value-comp {
-    font-weight: bold;
-    color: #4CAF50;
-}
-
-/* Select dropdown styling */
-select {
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: white;
-    font-size: 1rem;
-}
-
-/* Comparison page specific styles */
-.comparison-container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.comparison-container h1 {
+.evaluation-container h1,
+.comparison-container h1,
+.saved-results-container h1 {
     color: #2c3e50;
     margin-bottom: 1.5rem;
 }
@@ -228,6 +236,7 @@ select {
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .model-selection span {
@@ -235,40 +244,28 @@ select {
     color: #555;
 }
 
-.comparison-container .controls {
+.model-selection select {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Results container */
+.results-container {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.results-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-top: 2rem;
-}
-
-.model-result {
-    padding: 1.5rem;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.model-result h2 {
-    margin-top: 0;
-    color: #2c3e50;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 0.5rem;
 }
 
 .metric-card {
-    margin-bottom: 1rem;
     padding: 1rem;
     border-left: 4px solid #4CAF50;
     background: #f9f9f9;
@@ -279,162 +276,79 @@ select {
     margin-top: 0;
     color: #333;
     font-size: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .metric-value {
     font-size: 1.5rem;
     font-weight: bold;
     color: #4CAF50;
-    margin: 0.5rem 0;
-}
-
-.metric-description {
-    font-size: 0.9rem;
-    color: #666;
     margin: 0;
 }
 
-/* Visualization page specific styles */
-.visualization-container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.visualization-container h1 {
-    color: #2c3e50;
-    margin-bottom: 1.5rem;
-}
-
-.visualization-container .controls {
+.comparison-metrics {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1rem;
     margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.chart-container {
-    margin-top: 2rem;
-    padding: 1.5rem;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    min-height: 500px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .controls {
-        grid-template-columns: 1fr;
-    }
-
-    .chart-container {
-        padding: 1rem;
-    }
-
-    .results-grid {
-        grid-template-columns: 1fr;
-    }
-
-    nav {
-        flex-wrap: wrap;
-    }
-}
-
-/* Hallucination-specific styles */
-.metric-card.critical {
-    border-left: 4px solid #e74c3c;
-    background: #fdf2f2;
-}
-
-.metric-value.high {
-    color: #e74c3c;
-    font-weight: bold;
-}
-
-.metric-value.low {
-    color: #27ae60;
-}
-
-.improvement {
-    color: #27ae60;
-    font-weight: bold;
-}
-
-.worsening {
-    color: #e74c3c;
-    font-weight: bold;
-}
-
-.suggestions-grid {
+.model-results {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
+    gap: 1.5rem;
 }
 
-.suggestion-card {
-    padding: 1rem;
-    border-radius: 8px;
+.model-result {
+    padding: 1.5rem;
     background: #f8f9fa;
-    border-left: 4px solid #3498db;
+    border-radius: 8px;
+    border: 1px solid #ddd;
 }
 
-.suggestion-card.high-priority {
-    border-left-color: #e74c3c;
-    background: #fdf2f2;
+.model-result h4 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
 }
 
-.suggestion-card.medium-priority {
-    border-left-color: #f39c12;
-    background: #fef9e7;
+/* Sample responses */
+.sample-responses {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-.category-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: bold;
+.sample-response {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.sample-response h4 {
+    margin-top: 0;
+    color: #2c3e50;
     margin-bottom: 0.5rem;
 }
 
-.high-priority .category-badge {
-    background: #e74c3c;
-    color: white;
+.sample-response p {
+    margin-bottom: 0.5rem;
 }
 
-.medium-priority .category-badge {
-    background: #f39c12;
-    color: white;
-}
-
-.response-card {
-    border: 1px solid #ddd;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    border-radius: 8px;
-}
-
-.fact-score {
-    font-weight: bold;
-    color: #2c3e50;
-}
-
-/* Replace upload styles with these saved results styles */
+/* Saved results styles */
 .saved-results-container {
     max-width: 1000px;
     margin: 0 auto;
-    padding: 20px;
 }
 
 .results-actions {
     margin: 20px 0;
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .filter-section {
@@ -447,12 +361,6 @@ select {
 .filter-section label {
     margin-right: 10px;
     font-weight: bold;
-}
-
-.filter-section select {
-    padding: 5px 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
 }
 
 .saved-result-card {
@@ -494,29 +402,7 @@ select {
     color: white;
 }
 
-.delete-btn {
-    background-color: #e74c3c;
-    color: white;
-}
-
-.improvement-metrics {
-    background-color: #f8f9fa;
-    padding: 10px;
-    border-radius: 5px;
-    margin: 10px 0;
-}
-
-.positive {
-    color: #27ae60;
-    font-weight: bold;
-}
-
-.negative {
-    color: #e74c3c;
-    font-weight: bold;
-}
-
-/* Keep the modal styles from previous implementation */
+/* Modal styles */
 .modal {
     position: fixed;
     z-index: 1000;
@@ -525,22 +411,27 @@ select {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .modal-content {
     background-color: white;
-    margin: 5% auto;
     padding: 20px;
     border-radius: 8px;
-    width: 80%;
-    max-width: 900px;
+    width: 90%;
+    max-width: 800px;
     max-height: 80vh;
     overflow-y: auto;
+    position: relative;
 }
 
 .close {
     color: #aaa;
-    float: right;
+    position: absolute;
+    top: 10px;
+    right: 15px;
     font-size: 28px;
     font-weight: bold;
     cursor: pointer;
@@ -550,44 +441,18 @@ select {
     color: black;
 }
 
-/* Recent evaluations styles */
-.recent-evals-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+/* Error messages */
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid #f5c6cb;
 }
 
-.recent-eval-item {
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    background: white;
-}
-
-.recent-eval-item:hover {
-    background: #f8f9fa;
-}
-
-.eval-stats {
-    display: flex;
-    gap: 1rem;
-    margin: 0.5rem 0;
-    font-size: 0.9rem;
-}
-
-.hallucination-rate {
+.error {
     color: #e74c3c;
     font-weight: 500;
-}
-
-.accuracy {
-    color: #27ae60;
-    font-weight: 500;
-}
-
-.recent-eval-item small {
-    color: #666;
-    font-size: 0.8rem;
 }
 
 /* Footer styles */
@@ -616,4 +481,48 @@ footer strong {
 footer em {
     color: #FFD700;
     font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    nav {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    main {
+        padding: 1rem;
+    }
+
+    .features {
+        grid-template-columns: 1fr;
+    }
+
+    .metrics-grid,
+    .comparison-metrics,
+    .model-results {
+        grid-template-columns: 1fr;
+    }
+
+    .model-selection {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hero {
+        padding: 1rem;
+    }
+
+    .controls {
+        padding: 1rem;
+    }
+
+    .results-container {
+        padding: 1rem;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: 15px;
+    }
 }
