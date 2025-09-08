@@ -6,7 +6,95 @@
     <title>Local Model Evaluation Dashboard</title>
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/staticcss" rel="stylesheet">
+    <link href="/static/index.css" rel="stylesheet">
+    <style>
+        .chart-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .chart-type-selector {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .chart-btn {
+            padding: 8px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .chart-btn:hover {
+            background: #2980b9;
+        }
+
+        .comparison-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* Visualization Tabs Styles */
+        .viz-tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .viz-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            background: #f5f5f5;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .viz-tab.active {
+            background: white;
+            border-color: #ddd;
+            border-bottom-color: white;
+            margin-bottom: -1px;
+        }
+
+        .viz-tab:hover {
+            background: #e9e9e9;
+        }
+
+        .viz-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+
+        .viz-content.active {
+            display: block;
+        }
+
+        .viz-loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
 <nav>
@@ -65,12 +153,6 @@
                     <select id="model-select">
                         <option value="">Select a model...</option>
                     </select>
-                </div>
-
-                <div class="control-group">
-                    <label for="sample-count-eval">Sample Count:</label>
-                    <input type="range" id="sample-count-eval" min="1" max="10" value="3">
-                    <span id="sample-count-value-eval">3</span>
                 </div>
 
                 <button onclick="loadModelEvaluation()" class="primary-button">
@@ -156,6 +238,8 @@
     // Global state
     let availableModels = [];
     let allResults = [];
+    let charts = {}; // Store chart instances
+    let currentModelName = ''; // Store current model name for visualization tabs
 
     // Initialize the application
     document.addEventListener('DOMContentLoaded', function() {
@@ -165,15 +249,7 @@
     });
 
     function setupEventListeners() {
-        // Sample count slider
-        const evalSlider = document.getElementById('sample-count-eval');
-        const evalValue = document.getElementById('sample-count-value-eval');
-
-        if (evalSlider && evalValue) {
-            evalSlider.addEventListener('input', () => {
-                evalValue.textContent = evalSlider.value;
-            });
-        }
+        // Add any additional event listeners here
     }
 
     function setInitialPage() {
@@ -204,6 +280,21 @@
         if (pageId === 'saved-results') {
             loadAvailableModels();
         }
+
+        // Clean up charts when leaving pages
+        if (pageId !== 'evaluate' && pageId !== 'compare') {
+            destroyAllCharts();
+        }
+    }
+
+    function destroyAllCharts() {
+        // Destroy all chart instances to prevent memory leaks
+        Object.values(charts).forEach(chart => {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        });
+        charts = {};
     }
 
     async function loadAvailableModels() {
@@ -337,6 +428,7 @@
             const response = await fetch(`/api/evaluation/${modelName}`);
             const data = await response.json();
 
+            currentModelName = modelName; // Store for visualization tabs
             formatEvaluationResults(data, 'results-eval');
         } catch (error) {
             resultsElem.innerHTML = `
@@ -388,13 +480,37 @@
         }
     }
 
-    function formatEvaluationResults(data, targetId) {
+    async function loadVisualization(modelName, vizType) {
+        try {
+            const response = await fetch(`/api/visualization/${modelName}/${vizType}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const contentType = response.headers.get('content-type');
+
+            if (contentType && contentType.includes('text/html')) {
+                return await response.text();
+            } else {
+                // For images, create an img element
+                const blob = await response.blob();
+                return URL.createObjectURL(blob);
+            }
+        } catch (error) {
+            console.error('Error loading visualization:', error);
+            throw error;
+        }
+    }
+
+    async function formatEvaluationResults(data, targetId) {
         const container = document.getElementById(targetId);
         const metrics = data.metrics || data.evaluation_results?.metrics || {};
         const sampleResponses = data.sample_responses || data.evaluation_results?.sample_responses || [];
+        const modelName = data.model || 'Unknown Model';
 
         container.innerHTML = `
-            <h2>Evaluation Results: ${data.model || 'Unknown Model'}</h2>
+            <h2>Evaluation Results: ${modelName}</h2>
 
             <div class="metrics-grid">
                 ${metrics.accuracy ? `
@@ -417,13 +533,34 @@
                     <div class="metric-value">${(metrics.confidence * 100).toFixed(1)}%</div>
                 </div>
                 ` : ''}
+            </div>
 
-                ${metrics.response_length ? `
-                <div class="metric-card">
-                    <h3>Response Length</h3>
-                    <div class="metric-value">${metrics.response_length.toFixed(0)} chars</div>
+            <!-- Visualization Tabs -->
+            <div class="viz-tabs-container">
+                <h3>Visualizations</h3>
+                <div class="viz-tabs">
+                    <div class="viz-tab active" onclick="switchVizTab('accuracy_bar')">Accuracy</div>
+                    <div class="viz-tab" onclick="switchVizTab('hallucination_rate_bar')">Hallucination Rate</div>
+                    <div class="viz-tab" onclick="switchVizTab('confidence_bar')">Confidence</div>
+                    <div class="viz-tab" onclick="switchVizTab('radar')">Radar Chart</div>
+                    <div class="viz-tab" onclick="switchVizTab('comparison_table')">Comparison Table</div>
                 </div>
-                ` : ''}
+
+                <div id="viz-accuracy_bar" class="viz-content active">
+                    <div class="viz-loading">Loading accuracy chart...</div>
+                </div>
+                <div id="viz-hallucination_rate_bar" class="viz-content">
+                    <div class="viz-loading">Loading hallucination rate chart...</div>
+                </div>
+                <div id="viz-confidence_bar" class="viz-content">
+                    <div class="viz-loading">Loading confidence chart...</div>
+                </div>
+                <div id="viz-radar" class="viz-content">
+                    <div class="viz-loading">Loading radar chart...</div>
+                </div>
+                <div id="viz-comparison_table" class="viz-content">
+                    <div class="viz-loading">Loading comparison table...</div>
+                </div>
             </div>
 
             ${sampleResponses.length > 0 ? `
@@ -435,13 +572,62 @@
                         <p><strong>Prompt:</strong> ${response.prompt || 'N/A'}</p>
                         <p><strong>Reference:</strong> ${response.reference || 'N/A'}</p>
                         <p><strong>Model Response:</strong> ${response.response || 'N/A'}</p>
-                        ${response.accuracy ? `<p><strong>Accuracy:</strong> ${(response.accuracy * 100).toFixed(1)}%</p>` : ''}
-                        ${response.hallucination_score ? `<p><strong>Hallucination Score:</strong> ${(response.hallucination_score * 100).toFixed(1)}%</p>` : ''}
                     </div>
                 `).join('')}
             </div>
             ` : ''}
         `;
+
+        // Load the first visualization (accuracy chart)
+        loadVizContent('accuracy_bar');
+    }
+
+    function switchVizTab(vizType) {
+        // Hide all tabs and contents
+        document.querySelectorAll('.viz-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.viz-content').forEach(content => {
+            content.classList.remove('active');
+        });
+
+        // Activate selected tab and content
+        document.querySelector(`.viz-tab[onclick="switchVizTab('${vizType}')"]`).classList.add('active');
+        document.getElementById(`viz-${vizType}`).classList.add('active');
+
+        // Load the visualization content if not already loaded
+        loadVizContent(vizType);
+    }
+
+    async function loadVizContent(vizType) {
+        const vizContainer = document.getElementById(`viz-${vizType}`);
+
+        // Check if content is already loaded
+        if (vizContainer.getAttribute('data-loaded') === 'true') {
+            return;
+        }
+
+        try {
+            vizContainer.innerHTML = '<div class="viz-loading">Loading visualization...</div>';
+
+            const content = await loadVisualization(currentModelName, vizType);
+
+            if (vizType === 'comparison_table') {
+                vizContainer.innerHTML = content;
+            } else {
+                vizContainer.innerHTML = `<img src="${content}" alt="${vizType.replace('_', ' ')}" style="max-width: 100%; height: auto;">`;
+            }
+
+            vizContainer.setAttribute('data-loaded', 'true');
+        } catch (error) {
+            console.error(`Error loading ${vizType}:`, error);
+            vizContainer.innerHTML = `
+                <div class="error-message">
+                    <p>Failed to load visualization: ${error.message}</p>
+                    <p>Please make sure the visualization files are generated and placed in the correct directory.</p>
+                </div>
+            `;
+        }
     }
 
     function formatComparisonResults(data, targetId) {
@@ -463,6 +649,22 @@
             </div>
             ` : ''}
 
+            <div class="chart-controls">
+                <select id="comparison-chart-type" class="chart-type-selector">
+                    <option value="bar">Bar Chart</option>
+                    <option value="radar">Radar Chart</option>
+                </select>
+                <select id="comparison-metric" class="chart-type-selector">
+                    <option value="accuracy">Accuracy</option>
+                    <option value="hallucination_rate">Hallucination Rate</option>
+                    <option value="confidence">Confidence</option>
+                </select>
+                <button onclick="createComparisonChart()" class="chart-btn">Generate Comparison Chart</button>
+            </div>
+            <div id="comparison-chart-container" class="chart-container">
+                <canvas id="comparison-chart"></canvas>
+            </div>
+
             <h3>Detailed Results</h3>
             <div class="model-results">
                 ${Object.entries(data.models).map(([model, modelData]) => `
@@ -481,6 +683,107 @@
                 `).join('')}
             </div>
         `;
+
+        // Store the comparison data for chart generation
+        window.comparisonData = data;
+
+        // Auto-generate a comparison chart
+        setTimeout(() => createComparisonChart(), 100);
+    }
+
+    function createComparisonChart() {
+        const data = window.comparisonData || {};
+        const chartType = document.getElementById('comparison-chart-type')?.value || 'bar';
+        const metric = document.getElementById('comparison-metric')?.value || 'accuracy';
+
+        const chartContainer = document.getElementById('comparison-chart-container');
+        const canvas = document.getElementById('comparison-chart');
+
+        if (!data.models || Object.keys(data.models).length === 0) {
+            chartContainer.innerHTML = '<p>No comparison data available for chart generation.</p>';
+            return;
+        }
+
+        // Prepare data for chart
+        const models = Object.keys(data.models);
+        const values = models.map(model => {
+            const metrics = data.models[model].metrics || {};
+            return metrics[metric] || 0;
+        });
+
+        const metricLabel = metric.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const colors = generateColors(models.length);
+
+        // Destroy previous chart if it exists
+        if (charts.comparisonChart) {
+            charts.comparisonChart.destroy();
+        }
+
+        // Create new chart
+        const ctx = canvas.getContext('2d');
+        charts.comparisonChart = new Chart(ctx, {
+            type: chartType,
+            data: {
+                labels: models,
+                datasets: [{
+                    label: metricLabel,
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: colors.map(color => color.replace('0.6', '1')),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Model Comparison - ${metricLabel}`,
+                        font: { size: 16 }
+                    },
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: chartType === 'radar' ? {
+                    r: {
+                        beginAtZero: true,
+                        max: 1,
+                        ticks: {
+                            stepSize: 0.2
+                        }
+                    }
+                } : {
+                    y: {
+                        beginAtZero: true,
+                        max: 1,
+                        ticks: {
+                            stepSize: 0.2
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function generateColors(count) {
+        const colors = [
+            'rgba(255, 99, 132, 0.6)', // Red
+            'rgba(54, 162, 235, 0.6)', // Blue
+            'rgba(255, 206, 86, 0.6)', // Yellow
+            'rgba(75, 192, 192, 0.6)', // Green
+            'rgba(153, 102, 255, 0.6)', // Purple
+            'rgba(255, 159, 64, 0.6)'  // Orange
+        ];
+
+        // If we need more colors than available, generate random ones
+        if (count > colors.length) {
+            for (let i = colors.length; i < count; i++) {
+                colors.push(`rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.6)`);
+            }
+        }
+
+        return colors.slice(0, count);
     }
 
     function viewModelDetails(modelName) {

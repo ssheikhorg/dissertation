@@ -1,5 +1,7 @@
 from typing import Any
 
+from fastapi import HTTPException
+
 
 async def generate_comparison_metrics(models_data: dict[str, Any]) -> dict[str, Any]:
     """Generate comparative metrics between models"""
