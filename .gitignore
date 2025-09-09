@@ -12,3 +12,5 @@ pip-log.txt
 
 # env secrets
 .env
+
+cdk.out

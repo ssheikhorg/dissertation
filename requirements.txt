@@ -1,19 +1,8 @@
 fastapi[standard]
 uvicorn[standard]
 jinja2
-transformers
-torch
-accelerate
-bitsandbytes
-sentence-transformers
-faiss-cpu
-numpy
-pandas
 python-multipart
-huggingface_hub[hf_xet]
-protobuf
 
-
-langchain
-langchain-community
-langchain-huggingface
+aws-cdk-lib==2.214.0
+constructs>=10.4.2
+mangum

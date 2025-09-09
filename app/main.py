@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from mangum import Mangum
+
 from routes import router
 
 app = FastAPI()
@@ -16,3 +18,6 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/")
 async def root():
     return templates.TemplateResponse("index.html", {"request": {}})
+
+
+handler = Mangum(app)
