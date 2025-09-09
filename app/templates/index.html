@@ -3,261 +3,830 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Model Evaluation Dashboard</title>
+    <title>Local Model Evaluation Dashboard</title>
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="/static/index.css" rel="stylesheet">
-</head>
-<body>
-    <nav>
-        <a href="#" onclick="showPage('home')">Home</a>
-        <a href="#" onclick="showPage('evaluate')">Single Model Evaluation</a>
-        <a href="#" onclick="showPage('compare')">Model Comparison</a>
-        <a href="#" onclick="showPage('visualize')">Visualizations</a>
-    </nav>
-    <main>
-        <!-- Home Page -->
-        <div id="home-page" class="page active">
-            <div class="hero">
-                <h1>Model Evaluation Dashboard</h1>
-                <p>Compare and evaluate different LLM models with comprehensive metrics</p>
-            </div>
-
-            <div class="features">
-                <div class="feature-card">
-                    <a href="#" onclick="showPage('evaluate')">
-                        <h2>Single Model Evaluation</h2>
-                        <p>Test individual model performance with detailed metrics</p>
-                    </a>
-                </div>
-
-                <div class="feature-card">
-                    <a href="#" onclick="showPage('compare')">
-                        <h2>Model Comparison</h2>
-                        <p>Compare multiple models side-by-side</p>
-                    </a>
-                </div>
-
-                <div class="feature-card">
-                    <a href="#" onclick="showPage('visualize')">
-                        <h2>Visualizations</h2>
-                        <p>Interactive charts and analysis</p>
-                    </a>
-                </div>
-            </div>
-
-            <div class="recent-evaluations">
-                <h2>Recent Evaluations</h2>
-                <div id="recent-evals-container" hx-get="/api/recent-evaluations" hx-trigger="load">
-                    <p>Loading recent evaluations...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Evaluation Page -->
-        <div id="evaluate-page" class="page">
-            <div class="evaluation-container">
-                <h1>Model Evaluation</h1>
-
-                <form>
-                    <div class="controls">
-                        <div class="control-group">
-                            <label for="model-select">Model:</label>
-                            <select id="model-select" name="model_name">
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                <option value="claude-2">Claude 2</option>
-                                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
-                                <option value="grok-beta">Grok Beta</option>
-                                <option value="llama-2-7b">LLaMA 2 (7B)</option>
-                                <option value="mistral-7b">Mistral 7B</option>
-                                <option value="qwen-7b">Qwen 7B</option>
-                            </select>
-                        </div>
-
-                        <div class="control-group">
-                            <label for="dataset-select-eval">Dataset:</label>
-                            <select id="dataset-select-eval" name="dataset">
-                                <option value="pubmed_qa">PubMed QA</option>
-                                <option value="med_qa">Med QA</option>
-                                <option value="truthful_qa">Truthful QA</option>
-                            </select>
-                        </div>
-
-                        <div class="control-group">
-                            <label for="sample-count-eval">Sample Count:</label>
-                            <input type="range" id="sample-count-eval" name="sample_count" min="1" max="20" value="5">
-                            <span id="sample-count-value-eval">5</span>
-                        </div>
-
-                        <button
-                            hx-post="/api/evaluate"
-                            hx-include="[name]"
-                            hx-target="#results-eval"
-                            hx-indicator=".loading-eval"
-                            class="primary-button">
-                            Run Evaluation
-                        </button>
-                    </div>
-                </form>
-
-                <div class="loading loading-eval">
-                    <div class="spinner"></div>
-                    <p>Evaluating model...</p>
-                </div>
-
-                <div id="results-eval"></div>
-            </div>
-        </div>
-
-        <!-- Comparison Page -->
-        <div id="compare-page" class="page">
-            <div class="comparison-container">
-                <h1>Model Comparison</h1>
-
-                <form>
-                    <div class="controls">
-                        <div class="control-group">
-                            <label>Models to Compare:</label>
-                            <div class="model-selection">
-                                <select id="model1-select" name="model1">
-                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                    <option value="gpt-4">GPT-4</option>
-                                    <option value="claude-2">Claude 2</option>
-                                    <option value="llama-2-7b">LLaMA 2 (7B)</option>
-                                </select>
-                                <span>vs</span>
-                                <select id="model2-select" name="model2">
-                                    <option value="gpt-4">GPT-4</option>
-                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                    <option value="claude-2">Claude 2</option>
-                                    <option value="llama-2-7b">LLaMA 2 (7B)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="control-group">
-                            <label for="dataset-select-comp">Dataset:</label>
-                            <select id="dataset-select-comp" name="dataset">
-                                <option value="pubmed_qa">PubMed QA</option>
-                                <option value="med_qa">Med QA</option>
-                                <option value="truthful_qa">Truthful QA</option>
-                            </select>
-                        </div>
-
-                        <div class="control-group">
-                            <label for="sample-count-comp">Sample Count:</label>
-                            <input type="range" id="sample-count-comp" name="sample_count" min="1" max="20" value="5">
-                            <span id="sample-count-value-comp">5</span>
-                        </div>
-
-                        <button
-                            hx-post="/api/compare"
-                            hx-include="[name]"
-                            hx-target="#results-comp"
-                            hx-indicator=".loading-comp"
-                            class="primary-button">
-                            Compare Models
-                        </button>
-                    </div>
-                </form>
-
-                <div class="loading loading-comp">
-                    <div class="spinner"></div>
-                    <p>Comparing models...</p>
-                </div>
-
-                <div id="results-comp"></div>
-            </div>
-        </div>
-
-        <!-- Visualization Page -->
-        <div id="visualize-page" class="page">
-            <div class="visualization-container">
-                <h1>Model Evaluation Visualizations</h1>
-
-                <form>
-                    <div class="controls">
-                        <div class="control-group">
-                            <label for="visualization-type">Visualization Type:</label>
-                            <select id="visualization-type" name="visualization_type">
-                                <option value="bar">Bar Chart</option>
-                                <option value="radar">Radar Chart</option>
-                                <option value="scatter">Scatter Plot</option>
-                            </select>
-                        </div>
-
-                        <div class="control-group">
-                            <label for="metric-select">Metric:</label>
-                            <select id="metric-select" name="metric">
-                                <option value="hallucination_rate">Hallucination Rate</option>
-                                <option value="accuracy">Accuracy</option>
-                                <option value="fact_score">Fact Score</option>
-                                <option value="toxicity_score">Toxicity Score</option>
-                            </select>
-                        </div>
-
-                        <button
-                            hx-get="/api/visualize"
-                            hx-include="[name]"
-                            hx-target="#visualization-container"
-                            hx-indicator=".loading-viz"
-                            class="primary-button">
-                            Generate Visualization
-                        </button>
-                    </div>
-                </form>
-
-                <div class="loading loading-viz">
-                    <div class="spinner"></div>
-                    <p>Generating visualization...</p>
-                </div>
-
-                <div id="visualization-container" class="chart-container">
-                    <!-- Visualization will be rendered here -->
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <footer>
-        <div class="footer-content">
-            <p>This Model Evaluation Dashboard was developed by <strong>Sheikh Shahin Shapon</strong> as part of his MSc Dissertation on <em>"Hallucination Detection in Large Language Models for Medical Applications"</em></p>
-            <p>© 2024 Sheikh Shahin Shapon - All rights reserved</p>
-        </div>
-    </footer>
-
-    <script>
-        // Page navigation function
-        function showPage(pageId) {
-            // Hide all pages
-            document.querySelectorAll('.page').forEach(page => {
-                page.classList.remove('active');
-            });
-
-            // Show selected page
-            document.getElementById(`${pageId}-page`).classList.add('active');
+    <style>
+        .chart-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        // Update sample count displays
-        document.addEventListener('DOMContentLoaded', function() {
-            const evalSlider = document.getElementById('sample-count-eval');
-            const evalValue = document.getElementById('sample-count-value-eval');
-            const compSlider = document.getElementById('sample-count-comp');
-            const compValue = document.getElementById('sample-count-value-comp');
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
 
-            if (evalSlider && evalValue) {
-                evalSlider.addEventListener('input', () => {
-                    evalValue.textContent = evalSlider.value;
-                });
+        .chart-type-selector {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .chart-btn {
+            padding: 8px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .chart-btn:hover {
+            background: #2980b9;
+        }
+
+        .comparison-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* Visualization Tabs Styles */
+        .viz-tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .viz-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            background: #f5f5f5;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .viz-tab.active {
+            background: white;
+            border-color: #ddd;
+            border-bottom-color: white;
+            margin-bottom: -1px;
+        }
+
+        .viz-tab:hover {
+            background: #e9e9e9;
+        }
+
+        .viz-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+
+        .viz-content.active {
+            display: block;
+        }
+
+        .viz-loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="#" onclick="showPage('home')">Home</a>
+    <a href="#" onclick="showPage('evaluate')">Single Model Evaluation</a>
+    <a href="#" onclick="showPage('compare')">Model Comparison</a>
+    <a href="#" onclick="showPage('saved-results')">Saved Results</a>
+</nav>
+<main>
+    <!-- Home Page -->
+    <div id="home-page" class="page active">
+        <div class="hero">
+            <h1>Local Model Evaluation Dashboard</h1>
+            <p>Evaluate and compare local LLM models with focus on hallucination detection</p>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <a href="#" onclick="showPage('evaluate')">
+                    <h2>Single Model Evaluation</h2>
+                    <p>Test individual model performance with detailed metrics</p>
+                </a>
+            </div>
+
+            <div class="feature-card">
+                <a href="#" onclick="showPage('compare')">
+                    <h2>Model Comparison</h2>
+                    <p>Compare multiple models side-by-side</p>
+                </a>
+            </div>
+
+            <div class="feature-card">
+                <a href="#" onclick="showPage('saved-results')">
+                    <h2>Saved Results</h2>
+                    <p>View previously saved evaluation results</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="recent-evaluations">
+            <h2>Recent Evaluations</h2>
+            <div id="recent-evals-container">
+                <p>Loading recent evaluations...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Page -->
+    <div id="evaluate-page" class="page">
+        <div class="evaluation-container">
+            <h1>Model Evaluation</h1>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="model-select">Model:</label>
+                    <select id="model-select">
+                        <option value="">Select a model...</option>
+                    </select>
+                </div>
+
+                <button onclick="loadModelEvaluation()" class="primary-button">
+                    Load Evaluation Results
+                </button>
+            </div>
+
+            <div class="loading loading-eval">
+                <div class="spinner"></div>
+                <p>Loading evaluation results...</p>
+            </div>
+
+            <div id="results-eval" class="results-container"></div>
+        </div>
+    </div>
+
+    <!-- Comparison Page -->
+    <div id="compare-page" class="page">
+        <div class="comparison-container">
+            <h1>Model Comparison</h1>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>Models to Compare:</label>
+                    <div class="model-selection">
+                        <select id="model1-select">
+                            <option value="">Select first model...</option>
+                        </select>
+                        <span>vs</span>
+                        <select id="model2-select">
+                            <option value="">Select second model...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button onclick="compareModels()" class="primary-button">
+                    Compare Models
+                </button>
+            </div>
+
+            <div class="loading loading-comp">
+                <div class="spinner"></div>
+                <p>Comparing models...</p>
+            </div>
+
+            <div id="results-comp" class="results-container"></div>
+        </div>
+    </div>
+
+    <!-- Saved results section -->
+    <div id="saved-results-page" class="page">
+        <div class="saved-results-container">
+            <h1>Saved Evaluation Results</h1>
+
+            <div class="results-actions">
+                <button onclick="loadAvailableModels()" class="primary-button">Refresh Models</button>
+            </div>
+
+            <div class="filter-section">
+                <label for="model-filter">Filter by Model:</label>
+                <select id="model-filter" onchange="filterResults()">
+                    <option value="all">All Models</option>
+                </select>
+            </div>
+
+            <h3>Available Evaluation Results</h3>
+            <div id="saved-results-list">
+                <p>Loading available results...</p>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <div class="footer-content">
+        <p>This Model Evaluation Dashboard was developed by <strong>Sheikh Shahin Shapon</strong> as part of his MSc
+            Dissertation on <em>"Hallucination Detection in Large Language Models for Medical Applications"</em></p>
+        <p>© 2024 Sheikh Shahin Shapon - All rights reserved</p>
+    </div>
+</footer>
+
+<script>
+    // Global state
+    let availableModels = [];
+    let allResults = [];
+    let charts = {}; // Store chart instances
+    let currentModelName = ''; // Store current model name for visualization tabs
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAvailableModels();
+        setupEventListeners();
+        setInitialPage();
+    });
+
+    function setupEventListeners() {
+        // Add any additional event listeners here
+    }
+
+    function setInitialPage() {
+        const path = window.location.pathname;
+        let pageId = 'home';
+
+        if (path === '/evaluate') pageId = 'evaluate';
+        else if (path === '/compare') pageId = 'compare';
+        else if (path === '/saved-results') pageId = 'saved-results';
+
+        showPage(pageId);
+    }
+
+    function showPage(pageId) {
+        // Hide all pages
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active');
+        });
+
+        // Show selected page
+        document.getElementById(`${pageId}-page`).classList.add('active');
+
+        // Update URL without reloading
+        const url = pageId === 'home' ? '/' : `/${pageId}`;
+        window.history.pushState({}, '', url);
+
+        // Load data for specific pages
+        if (pageId === 'saved-results') {
+            loadAvailableModels();
+        }
+
+        // Clean up charts when leaving pages
+        if (pageId !== 'evaluate' && pageId !== 'compare') {
+            destroyAllCharts();
+        }
+    }
+
+    function destroyAllCharts() {
+        // Destroy all chart instances to prevent memory leaks
+        Object.values(charts).forEach(chart => {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
             }
+        });
+        charts = {};
+    }
 
-            if (compSlider && compValue) {
-                compSlider.addEventListener('input', () => {
-                    compValue.textContent = compSlider.value;
+    async function loadAvailableModels() {
+        try {
+            const response = await fetch('/api/models/available');
+            const data = await response.json();
+
+            availableModels = data.models || [];
+            populateModelDropdowns(availableModels);
+
+            if (availableModels.length > 0) {
+                loadAllResults();
+            } else {
+                document.getElementById('saved-results-list').innerHTML =
+                    '<p>No evaluation results found. Please run evaluations first.</p>';
+            }
+        } catch (error) {
+            console.error('Error loading available models:', error);
+            document.getElementById('saved-results-list').innerHTML =
+                `<p class="error">Error loading models: ${error.message}</p>`;
+        }
+    }
+
+    function populateModelDropdowns(models) {
+        const dropdowns = [
+            'model-select',
+            'model1-select',
+            'model2-select',
+            'model-filter'
+        ];
+
+        dropdowns.forEach(dropdownId => {
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                // Clear existing options except the first one
+                const firstOption = dropdown.options[0];
+                dropdown.innerHTML = '';
+                if (firstOption) dropdown.appendChild(firstOption);
+
+                // Add model options
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    dropdown.appendChild(option);
                 });
             }
         });
-    </script>
+    }
+
+    async function loadAllResults() {
+        try {
+            const results = [];
+
+            // Load results for each model
+            for (const model of availableModels) {
+                try {
+                    const response = await fetch(`/api/evaluation/${model}`);
+                    const data = await response.json();
+                    results.push({
+                        model: model,
+                        data: data,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    console.error(`Error loading results for ${model}:`, error);
+                }
+            }
+
+            allResults = results;
+            displayResults(results);
+        } catch (error) {
+            console.error('Error loading results:', error);
+            document.getElementById('saved-results-list').innerHTML =
+                `<p class="error">Error loading results: ${error.message}</p>`;
+        }
+    }
+
+    function displayResults(results, filterModel = 'all') {
+        const resultsList = document.getElementById('saved-results-list');
+
+        const filteredResults = filterModel === 'all'
+            ? results
+            : results.filter(r => r.model === filterModel);
+
+        if (filteredResults.length === 0) {
+            resultsList.innerHTML = '<p>No results found for the selected filter.</p>';
+            return;
+        }
+
+        resultsList.innerHTML = filteredResults.map(result => {
+            const metrics = result.data.metrics || result.data.evaluation_results?.metrics || {};
+
+            return `
+                <div class="saved-result-card">
+                    <h4>${result.model}</h4>
+                    <p><strong>Loaded:</strong> ${new Date(result.timestamp).toLocaleString()}</p>
+                    ${metrics.accuracy ? `<p><strong>Accuracy:</strong> ${(metrics.accuracy * 100).toFixed(1)}%</p>` : ''}
+                    ${metrics.hallucination_rate ? `<p><strong>Hallucination Rate:</strong> ${(metrics.hallucination_rate * 100).toFixed(1)}%</p>` : ''}
+                    ${metrics.confidence ? `<p><strong>Confidence:</strong> ${(metrics.confidence * 100).toFixed(1)}%</p>` : ''}
+                    <div class="result-actions">
+                        <button onclick="viewModelDetails('${result.model}')">View Details</button>
+                        <button onclick="useForComparison('${result.model}')">Use in Comparison</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function filterResults() {
+        const modelFilter = document.getElementById('model-filter');
+        const selectedModel = modelFilter.value;
+        displayResults(allResults, selectedModel);
+    }
+
+    async function loadModelEvaluation() {
+        const modelSelect = document.getElementById('model-select');
+        const modelName = modelSelect.value;
+        const loadingElem = document.querySelector('.loading-eval');
+        const resultsElem = document.getElementById('results-eval');
+
+        if (!modelName) {
+            resultsElem.innerHTML = '<p class="error">Please select a model first.</p>';
+            return;
+        }
+
+        loadingElem.style.display = 'block';
+        resultsElem.innerHTML = '';
+
+        try {
+            const response = await fetch(`/api/evaluation/${modelName}`);
+            const data = await response.json();
+
+            currentModelName = modelName; // Store for visualization tabs
+            formatEvaluationResults(data, 'results-eval');
+        } catch (error) {
+            resultsElem.innerHTML = `
+                <div class="error-message">
+                    <h3>Error</h3>
+                    <p>Failed to load evaluation results: ${error.message}</p>
+                </div>
+            `;
+        } finally {
+            loadingElem.style.display = 'none';
+        }
+    }
+
+    async function compareModels() {
+        const model1Select = document.getElementById('model1-select');
+        const model2Select = document.getElementById('model2-select');
+        const model1 = model1Select.value;
+        const model2 = model2Select.value;
+        const loadingElem = document.querySelector('.loading-comp');
+        const resultsElem = document.getElementById('results-comp');
+
+        if (!model1 || !model2) {
+            resultsElem.innerHTML = '<p class="error">Please select both models to compare.</p>';
+            return;
+        }
+
+        if (model1 === model2) {
+            resultsElem.innerHTML = '<p class="error">Please select two different models to compare.</p>';
+            return;
+        }
+
+        loadingElem.style.display = 'block';
+        resultsElem.innerHTML = '';
+
+        try {
+            const response = await fetch(`/api/compare?model1=${model1}&model2=${model2}`);
+            const data = await response.json();
+
+            formatComparisonResults(data, 'results-comp');
+        } catch (error) {
+            resultsElem.innerHTML = `
+                <div class="error-message">
+                    <h3>Error</h3>
+                    <p>Failed to compare models: ${error.message}</p>
+                </div>
+            `;
+        } finally {
+            loadingElem.style.display = 'none';
+        }
+    }
+
+    async function loadVisualization(modelName, vizType) {
+        try {
+            const response = await fetch(`/api/visualization/${modelName}/${vizType}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const contentType = response.headers.get('content-type');
+
+            if (contentType && contentType.includes('text/html')) {
+                return await response.text();
+            } else {
+                // For images, create an img element
+                const blob = await response.blob();
+                return URL.createObjectURL(blob);
+            }
+        } catch (error) {
+            console.error('Error loading visualization:', error);
+            throw error;
+        }
+    }
+
+    async function formatEvaluationResults(data, targetId) {
+        const container = document.getElementById(targetId);
+        const metrics = data.metrics || data.evaluation_results?.metrics || {};
+        const sampleResponses = data.sample_responses || data.evaluation_results?.sample_responses || [];
+        const modelName = data.model || 'Unknown Model';
+
+        container.innerHTML = `
+            <h2>Evaluation Results: ${modelName}</h2>
+
+            <div class="metrics-grid">
+                ${metrics.accuracy ? `
+                <div class="metric-card">
+                    <h3>Accuracy</h3>
+                    <div class="metric-value">${(metrics.accuracy * 100).toFixed(1)}%</div>
+                </div>
+                ` : ''}
+
+                ${metrics.hallucination_rate ? `
+                <div class="metric-card">
+                    <h3>Hallucination Rate</h3>
+                    <div class="metric-value">${(metrics.hallucination_rate * 100).toFixed(1)}%</div>
+                </div>
+                ` : ''}
+
+                ${metrics.confidence ? `
+                <div class="metric-card">
+                    <h3>Confidence</h3>
+                    <div class="metric-value">${(metrics.confidence * 100).toFixed(1)}%</div>
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- Visualization Tabs -->
+            <div class="viz-tabs-container">
+                <h3>Visualizations</h3>
+                <div class="viz-tabs">
+                    <div class="viz-tab active" onclick="switchVizTab('accuracy_bar')">Accuracy</div>
+                    <div class="viz-tab" onclick="switchVizTab('hallucination_rate_bar')">Hallucination Rate</div>
+                    <div class="viz-tab" onclick="switchVizTab('confidence_bar')">Confidence</div>
+                    <div class="viz-tab" onclick="switchVizTab('radar')">Radar Chart</div>
+                    <div class="viz-tab" onclick="switchVizTab('comparison_table')">Comparison Table</div>
+                </div>
+
+                <div id="viz-accuracy_bar" class="viz-content active">
+                    <div class="viz-loading">Loading accuracy chart...</div>
+                </div>
+                <div id="viz-hallucination_rate_bar" class="viz-content">
+                    <div class="viz-loading">Loading hallucination rate chart...</div>
+                </div>
+                <div id="viz-confidence_bar" class="viz-content">
+                    <div class="viz-loading">Loading confidence chart...</div>
+                </div>
+                <div id="viz-radar" class="viz-content">
+                    <div class="viz-loading">Loading radar chart...</div>
+                </div>
+                <div id="viz-comparison_table" class="viz-content">
+                    <div class="viz-loading">Loading comparison table...</div>
+                </div>
+            </div>
+
+            ${sampleResponses.length > 0 ? `
+            <h3>Sample Responses</h3>
+            <div class="sample-responses">
+                ${sampleResponses.slice(0, 3).map((response, index) => `
+                    <div class="sample-response">
+                        <h4>Sample ${index + 1}</h4>
+                        <p><strong>Prompt:</strong> ${response.prompt || 'N/A'}</p>
+                        <p><strong>Reference:</strong> ${response.reference || 'N/A'}</p>
+                        <p><strong>Model Response:</strong> ${response.response || 'N/A'}</p>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+        `;
+
+        // Load the first visualization (accuracy chart)
+        loadVizContent('accuracy_bar');
+    }
+
+    function switchVizTab(vizType) {
+        // Hide all tabs and contents
+        document.querySelectorAll('.viz-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.viz-content').forEach(content => {
+            content.classList.remove('active');
+        });
+
+        // Activate selected tab and content
+        document.querySelector(`.viz-tab[onclick="switchVizTab('${vizType}')"]`).classList.add('active');
+        document.getElementById(`viz-${vizType}`).classList.add('active');
+
+        // Load the visualization content if not already loaded
+        loadVizContent(vizType);
+    }
+
+    async function loadVizContent(vizType) {
+        const vizContainer = document.getElementById(`viz-${vizType}`);
+
+        // Check if content is already loaded
+        if (vizContainer.getAttribute('data-loaded') === 'true') {
+            return;
+        }
+
+        try {
+            vizContainer.innerHTML = '<div class="viz-loading">Loading visualization...</div>';
+
+            const content = await loadVisualization(currentModelName, vizType);
+
+            if (vizType === 'comparison_table') {
+                vizContainer.innerHTML = content;
+            } else {
+                vizContainer.innerHTML = `<img src="${content}" alt="${vizType.replace('_', ' ')}" style="max-width: 100%; height: auto;">`;
+            }
+
+            vizContainer.setAttribute('data-loaded', 'true');
+        } catch (error) {
+            console.error(`Error loading ${vizType}:`, error);
+            vizContainer.innerHTML = `
+                <div class="error-message">
+                    <p>Failed to load visualization: ${error.message}</p>
+                    <p>Please make sure the visualization files are generated and placed in the correct directory.</p>
+                </div>
+            `;
+        }
+    }
+
+    function formatComparisonResults(data, targetId) {
+        const container = document.getElementById(targetId);
+
+        container.innerHTML = `
+            <h2>Model Comparison Results</h2>
+
+            ${data.comparison ? `
+            <div class="comparison-metrics">
+                ${Object.entries(data.comparison).map(([metric, comparison]) => `
+                    <div class="metric-card">
+                        <h3>${metric.replace('_', ' ').toUpperCase()}</h3>
+                        <p><strong>Best:</strong> ${comparison.best_model} (${(comparison.values[comparison.best_model] * 100).toFixed(1)}%)</p>
+                        <p><strong>Worst:</strong> ${comparison.worst_model} (${(comparison.values[comparison.worst_model] * 100).toFixed(1)}%)</p>
+                        <p><strong>Difference:</strong> ${(comparison.range * 100).toFixed(1)}%</p>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
+            <div class="chart-controls">
+                <select id="comparison-chart-type" class="chart-type-selector">
+                    <option value="bar">Bar Chart</option>
+                    <option value="radar">Radar Chart</option>
+                </select>
+                <select id="comparison-metric" class="chart-type-selector">
+                    <option value="accuracy">Accuracy</option>
+                    <option value="hallucination_rate">Hallucination Rate</option>
+                    <option value="confidence">Confidence</option>
+                </select>
+                <button onclick="createComparisonChart()" class="chart-btn">Generate Comparison Chart</button>
+            </div>
+            <div id="comparison-chart-container" class="chart-container">
+                <canvas id="comparison-chart"></canvas>
+            </div>
+
+            <h3>Detailed Results</h3>
+            <div class="model-results">
+                ${Object.entries(data.models).map(([model, modelData]) => `
+                    <div class="model-result">
+                        <h4>${model}</h4>
+                        ${modelData.metrics ? `
+                            ${modelData.metrics.accuracy ? `<p>Accuracy: ${(modelData.metrics.accuracy * 100).toFixed(1)}%</p>` : ''}
+                            ${modelData.metrics.hallucination_rate ? `<p>Hallucination Rate: ${(modelData.metrics.hallucination_rate * 100).toFixed(1)}%</p>` : ''}
+                            ${modelData.metrics.confidence ? `<p>Confidence: ${(modelData.metrics.confidence * 100).toFixed(1)}%</p>` : ''}
+                        ` : modelData.error ? `
+                            <p class="error-message">Error: ${modelData.error}</p>
+                        ` : `
+                            <p>No metrics available</p>
+                        `}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        // Store the comparison data for chart generation
+        window.comparisonData = data;
+
+        // Auto-generate a comparison chart
+        setTimeout(() => createComparisonChart(), 100);
+    }
+
+    function createComparisonChart() {
+        const data = window.comparisonData || {};
+        const chartType = document.getElementById('comparison-chart-type')?.value || 'bar';
+        const metric = document.getElementById('comparison-metric')?.value || 'accuracy';
+
+        const chartContainer = document.getElementById('comparison-chart-container');
+        const canvas = document.getElementById('comparison-chart');
+
+        if (!data.models || Object.keys(data.models).length === 0) {
+            chartContainer.innerHTML = '<p>No comparison data available for chart generation.</p>';
+            return;
+        }
+
+        // Prepare data for chart
+        const models = Object.keys(data.models);
+        const values = models.map(model => {
+            const metrics = data.models[model].metrics || {};
+            return metrics[metric] || 0;
+        });
+
+        const metricLabel = metric.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const colors = generateColors(models.length);
+
+        // Destroy previous chart if it exists
+        if (charts.comparisonChart) {
+            charts.comparisonChart.destroy();
+        }
+
+        // Create new chart
+        const ctx = canvas.getContext('2d');
+        charts.comparisonChart = new Chart(ctx, {
+            type: chartType,
+            data: {
+                labels: models,
+                datasets: [{
+                    label: metricLabel,
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: colors.map(color => color.replace('0.6', '1')),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Model Comparison - ${metricLabel}`,
+                        font: { size: 16 }
+                    },
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: chartType === 'radar' ? {
+                    r: {
+                        beginAtZero: true,
+                        max: 1,
+                        ticks: {
+                            stepSize: 0.2
+                        }
+                    }
+                } : {
+                    y: {
+                        beginAtZero: true,
+                        max: 1,
+                        ticks: {
+                            stepSize: 0.2
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function generateColors(count) {
+        const colors = [
+            'rgba(255, 99, 132, 0.6)', // Red
+            'rgba(54, 162, 235, 0.6)', // Blue
+            'rgba(255, 206, 86, 0.6)', // Yellow
+            'rgba(75, 192, 192, 0.6)', // Green
+            'rgba(153, 102, 255, 0.6)', // Purple
+            'rgba(255, 159, 64, 0.6)'  // Orange
+        ];
+
+        // If we need more colors than available, generate random ones
+        if (count > colors.length) {
+            for (let i = colors.length; i < count; i++) {
+                colors.push(`rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.6)`);
+            }
+        }
+
+        return colors.slice(0, count);
+    }
+
+    function viewModelDetails(modelName) {
+        const result = allResults.find(r => r.model === modelName);
+        if (!result) return;
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <span class="close" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                <h2>Evaluation Details: ${modelName}</h2>
+                <pre>${JSON.stringify(result.data, null, 2)}</pre>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    function useForComparison(modelName) {
+        showPage('compare');
+
+        // Set the model in the comparison dropdowns
+        const model1Select = document.getElementById('model1-select');
+        const model2Select = document.getElementById('model2-select');
+
+        if (model1Select.value === '') {
+            model1Select.value = modelName;
+        } else if (model2Select.value === '') {
+            model2Select.value = modelName;
+        }
+    }
+
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function(event) {
+        const path = window.location.pathname;
+        let pageId = 'home';
+
+        if (path === '/evaluate') pageId = 'evaluate';
+        else if (path === '/compare') pageId = 'compare';
+        else if (path === '/saved-results') pageId = 'saved-results';
+
+        showPage(pageId);
+    });
+</script>
 </body>
 </html>

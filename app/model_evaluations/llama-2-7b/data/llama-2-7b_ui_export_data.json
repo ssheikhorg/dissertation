@@ -1,0 +1,205 @@
+{
+  "model": "llama-2-7b",
+  "evaluation_date": "2025-09-08T21:01:15.162750",
+  "metrics": {
+    "accuracy": 0.29584030597434485,
+    "hallucination_rate": 0.5661083220547065,
+    "confidence": 0.9777777777777779,
+    "response_length": 474.22222222222223,
+    "consistency": 0.8244696928724574
+  },
+  "dataset_metrics": {
+    "pubmedqa": {
+      "accuracy": 0.14025919270327608,
+      "hallucination_rate": 0.6038963229186896,
+      "confidence": 1.0,
+      "response_length": 476.5,
+      "consistency": 0.8758626677697539
+    },
+    "medqa": {
+      "accuracy": 0.2703045493658627,
+      "hallucination_rate": 0.691878180253655,
+      "confidence": 0.9,
+      "response_length": 268.5,
+      "consistency": 0.891878180253655
+    },
+    "mimic_cxr": {
+      "accuracy": 0.08886004772715483,
+      "hallucination_rate": 0.6977893142424714,
+      "confidence": 1.0,
+      "response_length": 914.5,
+      "consistency": 0.980135625927272
+    }
+  },
+  "dataset_details": {
+    "pubmedqa": {
+      "model": "llama-2-7b",
+      "dataset": "pubmedqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.14025919270327608,
+        "hallucination_rate": 0.6038963229186896,
+        "confidence": 1.0,
+        "response_length": 476.5,
+        "consistency": 0.8758626677697539
+      },
+      "dataset_metrics": {
+        "pubmedqa": {
+          "accuracy": 0.14025919270327608,
+          "hallucination_rate": 0.6038963229186896,
+          "confidence": 1.0,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "What is the first-line treatment for hypertension?",
+          "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+          "response": "The first-line treatment for hypertension is lifestyle modifications, such as a healthy diet, regular exercise, weight loss, and stress management. These modifications can help lower blood pressure and reduce the risk of heart disease. If lifestyle modifications are not effective, medications such as diuretics, beta blockers, or ACE inhibitors may be prescribed. However, I don't know the specific medication that is most commonly prescribed as the first-line treatment for hypertension.",
+          "accuracy": 0.17991586212766092,
+          "hallucination_score": 0.7280336551489357,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "How does metformin work in type 2 diabetes?",
+          "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+          "response": "Metformin works in type 2 diabetes by improving insulin sensitivity, which means it helps the body's cells to better respond to insulin, leading to lower blood sugar levels. It does not reduce inflammation or directly treat any of the underlying causes of diabetes, such as insulin resistance or pancreatic beta-cell dysfunction. Therefore, it is not effective in treating diabetes symptoms such as increased thirst, frequent urination, fatigue, or blurred vision.",
+          "accuracy": 0.10060252327889121,
+          "hallucination_score": 0.4797589906884435,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "medqa": {
+      "model": "llama-2-7b",
+      "dataset": "medqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.2703045493658627,
+        "hallucination_rate": 0.691878180253655,
+        "confidence": 0.9,
+        "response_length": 268.5,
+        "consistency": 0.891878180253655
+      },
+      "dataset_metrics": {
+        "medqa": {
+          "accuracy": 0.2703045493658627,
+          "hallucination_rate": 0.691878180253655,
+          "confidence": 0.9,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+          "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+          "response": "I don't know.",
+          "accuracy": 0.0,
+          "hallucination_score": 0.8,
+          "confidence": 0.8
+        },
+        {
+          "prompt": "What is the gold standard test for diagnosing pulmonary embolism?",
+          "reference": "CT pulmonary angiography is the gold standard for diagnosing pulmonary embolism.",
+          "response": "The gold standard test for diagnosing pulmonary embolism is a computed tomography (CT) angiography. This test uses X-rays and computer technology to create detailed images of the blood vessels in the lungs and can identify the presence of a pulmonary embolism. Other tests that may be used to diagnose pulmonary embolism include ventilation-perfusion (V/Q) scanning, echocardiography, and blood tests to check for blood clots. However, CT angiography is the most accurate and reliable test for diagnosing pulmonary embolism.",
+          "accuracy": 0.5406090987317254,
+          "hallucination_score": 0.58375636050731,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "mimic_cxr": {
+      "model": "llama-2-7b",
+      "dataset": "mimic_cxr",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.08886004772715483,
+        "hallucination_rate": 0.6977893142424714,
+        "confidence": 1.0,
+        "response_length": 914.5,
+        "consistency": 0.980135625927272
+      },
+      "dataset_metrics": {
+        "mimic_cxr": {
+          "accuracy": 0.08886004772715483,
+          "hallucination_rate": 0.6977893142424714,
+          "confidence": 1.0,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "Describe the findings in a chest X-ray showing cardiomegaly and pulmonary edema.",
+          "reference": "Cardiomegaly appears as an enlarged cardiac silhouette, while pulmonary edema manifests as bilateral interstitial opacities and Kerley B lines.",
+          "response": "Cardiomegaly refers to an enlargement of the heart, which can be caused by various factors such as high blood pressure, coronary artery disease, or heart failure. On a chest X-ray, cardiomegaly may appear as an increased size of the heart, which can be detected by the presence of a larger-than-normal heart shadow.\n\nPulmonary edema, on the other hand, is the accumulation of fluid in the lungs, which can be caused by various factors such as heart failure, pneumonia, or acute respiratory distress syndrome. On a chest X-ray, pulmonary edema may appear as an increased opacity or whitening of the lung fields, which can indicate the presence of fluid in the lungs.\n\nIn the context of heart disease risk factors, cardiomegaly and pulmonary edema can be related. For example, high blood pressure can cause the heart to work harder, leading to cardiomegaly, and fluid buildup in the lungs can be a consequence of heart failure. Therefore, the presence of cardiomegaly and pulmonary edema on a chest X-ray may indicate an increased risk of heart disease.\n\nHowever, it's important to note that cardiomegaly and pulmonary edema can also have other causes, such as pneumonia or acute respiratory distress syndrome, which are not related to heart disease. Therefore, a thorough medical evaluation and additional diagnostic tests, such as an echocardiogram or a pulmonary function test, may be necessary to determine the underlying cause of these findings.",
+          "accuracy": 0.138520982908975,
+          "hallucination_score": 0.6779249401697434,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "What radiographic signs suggest pneumothorax?",
+          "reference": "Pneumothorax is characterized by a visible visceral pleural edge, absence of lung markings peripheral to this edge, and possible mediastinal shift.",
+          "response": "I'm just an AI, I don't know the answer to your question based on the provided medical context. Pneumothorax is a medical condition that requires a chest X-ray to diagnose, and there are no specific radiographic signs that suggest pneumothorax based on the information provided. It is important to consult a medical professional for an accurate diagnosis and appropriate treatment.",
+          "accuracy": 0.03919911254533467,
+          "hallucination_score": 0.7176536883151995,
+          "confidence": 1.0
+        }
+      ]
+    }
+  },
+  "sample_responses": [
+    {
+      "id": 1,
+      "prompt": "What is the first-line treatment for hypertension?",
+      "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+      "response": "The first-line treatment for hypertension is lifestyle modifications, such as a healthy diet, regular exercise, weight loss, and stress management. These modifications can help lower blood pressure and reduce the risk of complications associated with hypertension. If lifestyle modifications are not effective, medications such as diuretics, beta blockers, or ACE inhibitors may be prescribed. However, I don't know the specific medication that is considered the first-line treatment for hypertension without considering individual patient factors and medical history.",
+      "accuracy": 0.18988865812438865,
+      "hallucination_score": 0.7240445367502446,
+      "dataset": "medical_qa"
+    },
+    {
+      "id": 2,
+      "prompt": "How does metformin work in type 2 diabetes?",
+      "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+      "response": "Metformin works by decreasing glucose production in the liver and increasing insulin sensitivity in the body. It does not directly treat diabetes symptoms like increased thirst and urination, but it can help manage blood sugar levels and reduce the risk of complications associated with type 2 diabetes, such as heart disease.",
+      "accuracy": 0.17063131540942328,
+      "hallucination_score": 0.4517474738362307,
+      "dataset": "medical_qa"
+    },
+    {
+      "id": 3,
+      "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+      "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+      "response": "I don't know.",
+      "accuracy": 0.0,
+      "hallucination_score": 0.8,
+      "dataset": "medical_qa"
+    }
+  ],
+  "suggestions": [
+    {
+      "category": "High Priority",
+      "suggestion": "Implement RAG with verified medical knowledge base",
+      "expected_impact": "40-60% reduction in hallucinations"
+    },
+    {
+      "category": "High Priority",
+      "suggestion": "Fine-tune with curated medical QA pairs and implement fact-checking",
+      "expected_impact": "30-50% accuracy improvement"
+    },
+    {
+      "category": "General",
+      "suggestion": "Implement multi-step verification: claim extraction \u2192 fact checking \u2192 response generation",
+      "expected_impact": "Overall quality and reliability improvement"
+    }
+  ],
+  "improvement": {
+    "hallucination_reduction": -126.4433288218826,
+    "accuracy_improvement": -57.73709914652216
+  },
+  "baseline": {
+    "accuracy": 0.7,
+    "hallucination_rate": 0.25,
+    "fact_score": 0.75
+  }
+}

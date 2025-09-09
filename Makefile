@@ -3,3 +3,5 @@ install:
 
 fmt:
 	ruff format . && ruff check . --fix
+
+#hf_token=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

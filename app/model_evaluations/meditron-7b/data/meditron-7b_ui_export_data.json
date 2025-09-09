@@ -1,0 +1,205 @@
+{
+  "model": "meditron-7b",
+  "evaluation_date": "2025-09-08T23:09:17.466238",
+  "metrics": {
+    "accuracy": 0.1205789598340874,
+    "hallucination_rate": 0.6458424901404392,
+    "confidence": 0.9777777777777779,
+    "response_length": 408.8888888888889,
+    "consistency": 0.8467757494661139
+  },
+  "dataset_metrics": {
+    "pubmedqa": {
+      "accuracy": 0.1078702292885622,
+      "hallucination_rate": 0.6168519082845751,
+      "confidence": 1.0,
+      "response_length": 97.5,
+      "consistency": 0.8168519082845751
+    },
+    "medqa": {
+      "accuracy": 0.2129018382000901,
+      "hallucination_rate": 0.714839264719964,
+      "confidence": 0.9,
+      "response_length": 322.5,
+      "consistency": 0.9148392647199639
+    },
+    "mimic_cxr": {
+      "accuracy": 0.22373507653585403,
+      "hallucination_rate": 0.6771726360523251,
+      "confidence": 1.0,
+      "response_length": 729.5,
+      "consistency": 0.9987658620388153
+    }
+  },
+  "dataset_details": {
+    "pubmedqa": {
+      "model": "meditron-7b",
+      "dataset": "pubmedqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.1078702292885622,
+        "hallucination_rate": 0.6168519082845751,
+        "confidence": 1.0,
+        "response_length": 97.5,
+        "consistency": 0.8168519082845751
+      },
+      "dataset_metrics": {
+        "pubmedqa": {
+          "accuracy": 0.1078702292885622,
+          "hallucination_rate": 0.6168519082845751,
+          "confidence": 1.0,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "What is the first-line treatment for hypertension?",
+          "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+          "response": "Aspirin is an anti-inflammatory drug.\n\n            Explanation: Aspirin is an anti-inflammatory drug that reduces",
+          "accuracy": 0.0,
+          "hallucination_score": 0.8,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "How does metformin work in type 2 diabetes?",
+          "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+          "response": "Metformin is an insulin-sensitizing drug that reduces insulin resistance and impro",
+          "accuracy": 0.2157404585771244,
+          "hallucination_score": 0.43370381656915025,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "medqa": {
+      "model": "meditron-7b",
+      "dataset": "medqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.2129018382000901,
+        "hallucination_rate": 0.714839264719964,
+        "confidence": 0.9,
+        "response_length": 322.5,
+        "consistency": 0.9148392647199639
+      },
+      "dataset_metrics": {
+        "medqa": {
+          "accuracy": 0.2129018382000901,
+          "hallucination_rate": 0.714839264719964,
+          "confidence": 0.9,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+          "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+          "response": "Pneumonia\n\n            Explan",
+          "accuracy": 0.0,
+          "hallucination_score": 0.8,
+          "confidence": 0.8
+        },
+        {
+          "prompt": "What is the gold standard test for diagnosing pulmonary embolism?",
+          "reference": "CT pulmonary angiography is the gold standard for diagnosing pulmonary embolism.",
+          "response": "Computed tomography pulmonary angiography (CTPA)\n\n            Explanation:\n            The gold standard test for diagnosing pulmonary embolism is computed tomography pulmonary angiography (CTPA).\n            CTPA is a test that uses a CT scanner to take a series of X-ray images of the lungs.\n            It is the most accurate test for diagnosing pulmonary embolism.\n\n            If you don't know the answer based on the context, say you don't know. Be concise and avoid speculation.\n\n            Medical Context:\n            Hypertension (high blood pressure) is a condition where blood pressure is consistently",
+          "accuracy": 0.4258036764001802,
+          "hallucination_score": 0.629678529439928,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "mimic_cxr": {
+      "model": "meditron-7b",
+      "dataset": "mimic_cxr",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.22373507653585403,
+        "hallucination_rate": 0.6771726360523251,
+        "confidence": 1.0,
+        "response_length": 729.5,
+        "consistency": 0.9987658620388153
+      },
+      "dataset_metrics": {
+        "mimic_cxr": {
+          "accuracy": 0.22373507653585403,
+          "hallucination_rate": 0.6771726360523251,
+          "confidence": 1.0,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "Describe the findings in a chest X-ray showing cardiomegaly and pulmonary edema.",
+          "reference": "Cardiomegaly appears as an enlarged cardiac silhouette, while pulmonary edema manifests as bilateral interstitial opacities and Kerley B lines.",
+          "response": "Cardiomegaly is an enlarged heart. Pulmonary edema is fluid in the",
+          "accuracy": 0.30398306496622574,
+          "hallucination_score": 0.6784067740135098,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "What radiographic signs suggest pneumothorax?",
+          "reference": "Pneumothorax is characterized by a visible visceral pleural edge, absence of lung markings peripheral to this edge, and possible mediastinal shift.",
+          "response": "- Pneumothorax is a condition in which air leaks into the pleural space.\n            - Pneumothorax is diagnosed by a chest X-ray.\n            - Pneumothorax is treated with a chest tube.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.\n\n            - Pneumothorax is a rare complication of lung cancer.",
+          "accuracy": 0.14348708810548233,
+          "hallucination_score": 0.6759384980911405,
+          "confidence": 1.0
+        }
+      ]
+    }
+  },
+  "sample_responses": [
+    {
+      "id": 1,
+      "prompt": "What is the first-line treatment for hypertension?",
+      "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+      "response": "Smoking is a risk factor for heart disease.\n\n            Explanation:\n            Sm",
+      "accuracy": 0.0,
+      "hallucination_score": 0.8,
+      "dataset": "medical_qa"
+    },
+    {
+      "id": 2,
+      "prompt": "How does metformin work in type 2 diabetes?",
+      "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+      "response": "Metformin is an oral medication used to treat type 2 diabetes. It works by reducing insulin resistance, which is the inability of the body to respond to insulin.\n            Metformin also decreases hepatic glucose production and increases insulin sensitivity.\n            It is a biguanide, which is a class of medications that work by decreasing hepatic glucose production and increasing insulin sensitivity.\n\n            Diabetes symptoms include increased thirst, frequent urination, fatigue, blurred vision.\nAspirin is a nonsteroidal anti-inflammatory drug that reduces pain and inflammation.\nHeart disease risk factors include high blood pressure, high cholesterol, smoking, and diabetes.\n\n            Question",
+      "accuracy": 0.35193986811405986,
+      "hallucination_score": 0.3792240527543761,
+      "dataset": "medical_qa"
+    },
+    {
+      "id": 3,
+      "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+      "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+      "response": "Myocardial infarction\n\n            Explanation:\n            Myocardial infarction is the most likely diagnosis.\n            Myocardial infarction is an acute myocardial infarction (heart attack) that results from the blockage of a coronary artery.\n            The patient's chest pain is relieved by nitroglycerin.\n            The patient's chest pain is relieved by calcium channel blockers.\n            The patient's chest pain is relieved by beta-blockers.",
+      "accuracy": 0.28587276762829394,
+      "hallucination_score": 0.6389842262820158,
+      "dataset": "medical_qa"
+    }
+  ],
+  "suggestions": [
+    {
+      "category": "High Priority",
+      "suggestion": "Implement RAG with verified medical knowledge base",
+      "expected_impact": "40-60% reduction in hallucinations"
+    },
+    {
+      "category": "High Priority",
+      "suggestion": "Fine-tune with curated medical QA pairs and implement fact-checking",
+      "expected_impact": "30-50% accuracy improvement"
+    },
+    {
+      "category": "General",
+      "suggestion": "Implement multi-step verification: claim extraction \u2192 fact checking \u2192 response generation",
+      "expected_impact": "Overall quality and reliability improvement"
+    }
+  ],
+  "improvement": {
+    "hallucination_reduction": -158.33699605617565,
+    "accuracy_improvement": -82.7744343094161
+  },
+  "baseline": {
+    "accuracy": 0.7,
+    "hallucination_rate": 0.25,
+    "fact_score": 0.75
+  }
+}

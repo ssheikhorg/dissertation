@@ -1,0 +1,181 @@
+{
+  "model": "mistral-7b",
+  "dataset": "combined_medical",
+  "sample_count": 3,
+  "metrics": {
+    "accuracy": 0.2299108089080129,
+    "hallucination_rate": 0.5965541949553134,
+    "confidence": 1.0,
+    "response_length": 1890.111111111111,
+    "consistency": 0.85327829889345
+  },
+  "dataset_metrics": {
+    "pubmedqa": {
+      "model": "mistral-7b",
+      "dataset": "pubmedqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.11137557202521887,
+        "hallucination_rate": 0.6154497711899125,
+        "confidence": 1.0,
+        "response_length": 240.5,
+        "consistency": 0.836547643305072
+      },
+      "dataset_metrics": {
+        "pubmedqa": {
+          "accuracy": 0.11137557202521887,
+          "hallucination_rate": 0.6154497711899125,
+          "confidence": 1.0,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "What is the first-line treatment for hypertension?",
+          "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+          "response": "The first-line treatment for hypertension is lifestyle changes, such as reducing salt intake, exercising regularly, and maintaining a healthy weight. If lifestyle changes are not enough to control blood pressure, medication may be prescribed.",
+          "accuracy": 0.052744680287899054,
+          "hallucination_score": 0.7789021278848405,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "How does metformin work in type 2 diabetes?",
+          "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+          "response": "Metformin is a medication used to treat type 2 diabetes. It works by reducing the amount of glucose produced by the liver and improving the body's sensitivity to insulin. This helps to lower blood sugar levels and improve glycemic control.",
+          "accuracy": 0.1700064637625387,
+          "hallucination_score": 0.45199741449498454,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "medqa": {
+      "model": "mistral-7b",
+      "dataset": "medqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.2998406535124721,
+        "hallucination_rate": 0.6900637385950112,
+        "confidence": 1.0,
+        "response_length": 708.0,
+        "consistency": 0.926074013861877
+      },
+      "dataset_metrics": {
+        "medqa": {
+          "accuracy": 0.2998406535124721,
+          "hallucination_rate": 0.6900637385950112,
+          "confidence": 1.0,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+          "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+          "response": "The most likely diagnosis is a heart attack.\n            The patient's symptoms of chest pain radiating to the left arm, along with the patient's age, suggest that the patient may be experiencing a heart attack.\n            A heart attack occurs when the blood supply to the heart is blocked, usually by a blood clot. This can cause chest pain, shortness of breath, and pain in the left arm.\n            The patient's age, along with the presence of other risk factors such as high blood pressure, high cholesterol, smoking, and diabetes, increases the likelihood of a heart attack.\n            The patient should be evaluated by a healthcare provider as soon as possible to determine the best course of treatment.\n\n            Note: This answer is based on the provided medical context and is not intended to replace medical advice.",
+          "accuracy": 0.14002568816716468,
+          "hallucination_score": 0.7639897247331342,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "What is the gold standard test for diagnosing pulmonary embolism?",
+          "reference": "CT pulmonary angiography is the gold standard for diagnosing pulmonary embolism.",
+          "response": "The gold standard test for diagnosing pulmonary embolism is a pulmonary angiogram, which is an x-ray of the lungs that uses a dye to highlight any blood clots.\n\n            Explanation:\n            A pulmonary angiogram is the most accurate test for diagnosing pulmonary embolism, which is a blood clot in the lungs. It involves injecting a dye into the blood vessels of the lungs and taking an x-ray to see if any clots are present. Other tests, such as a CT scan or ultrasound, can also be used to diagnose pulmonary embolism, but they are not as accurate as a pulmonary angiogram.",
+          "accuracy": 0.4596556188577795,
+          "hallucination_score": 0.6161377524568883,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "mimic_cxr": {
+      "model": "mistral-7b",
+      "dataset": "mimic_cxr",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.10939148417300684,
+        "hallucination_rate": 0.722910072997464,
+        "confidence": 1.0,
+        "response_length": 2310.0,
+        "consistency": 0.9611294780208545
+      },
+      "dataset_metrics": {
+        "mimic_cxr": {
+          "accuracy": 0.10939148417300684,
+          "hallucination_rate": 0.722910072997464,
+          "confidence": 1.0,
+          "sample_count": 2
+        }
+      },
+      "sample_responses": [
+        {
+          "prompt": "Describe the findings in a chest X-ray showing cardiomegaly and pulmonary edema.",
+          "reference": "Cardiomegaly appears as an enlarged cardiac silhouette, while pulmonary edema manifests as bilateral interstitial opacities and Kerley B lines.",
+          "response": "Cardiomegaly is an enlargement of the heart, which can be seen on a chest X-ray as an increase in the size of the heart. Pulmonary edema is a condition where fluid accumulates in the lungs, which can also be seen on a chest X-ray as an increase in the size of the lungs. The combination of cardiomegaly and pulmonary edema on a chest X-ray can indicate heart failure, which is a condition where the heart is unable to pump enough blood to meet the body's needs.\n\n            In conclusion, a chest X-ray showing cardiomegaly and pulmonary edema can indicate heart failure, which is a serious condition that requires medical attention.",
+          "accuracy": 0.12323445578753739,
+          "hallucination_score": 0.6840395510183185,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "What radiographic signs suggest pneumothorax?",
+          "reference": "Pneumothorax is characterized by a visible visceral pleural edge, absence of lung markings peripheral to this edge, and possible mediastinal shift.",
+          "response": "Pneumothorax is a condition where air accumulates in the pleural space, causing the lung to collapse.\n            Radiographic signs of pneumothorax include:\n            - A visible line separating the collapsed lung from the chest wall\n            - Decreased lung volume on the affected side\n            - Increased lung volume on the unaffected side\n            - A \"white out\" appearance of the affected lung\n            - A \"snowstorm\" appearance of the affected lung\n            - A \"crescent\" appearance of the affected lung\n            - A \"rounded\" appearance of the affected lung\n            - A \"triangular\" appearance of the affected lung\n            - A \"rectangular\" appearance of the affected lung\n            - A \"pentagonal\" appearance of the affected lung\n            - A \"hexagonal\" appearance of the affected lung\n            - A \"heptagonal\" appearance of the affected lung\n            - A \"octagonal\" appearance of the affected lung\n            - A \"nonagonal\" appearance of the affected lung\n            - A \"decagonal\" appearance of the affected lung\n            - A \"hendecagonal\" appearance of the affected lung\n            - A \"dodecagonal\" appearance of the affected lung\n            - A \"tridecagonal\" appearance of the affected lung\n            - A \"tetradecagonal\" appearance of the affected lung\n            - A \"pentadecagonal\" appearance of the affected lung\n            - A \"hexadecagonal\" appearance of the affected lung\n            - A \"heptadecagonal\" appearance of the affected lung\n            - A \"octadecagonal\" appearance of the affected lung\n            - A \"nonadecagonal\" appearance of the affected lung\n            - A \"decadecagonal\" appearance of the affected lung\n            - A \"hendecadecagonal\" appearance of the affected lung\n            - A \"dodecadecagonal\" appearance of the affected lung\n            - A \"tridecadecagonal\" appearance of the affected lung\n            - A \"tetradecadecagonal\" appearance of the affected lung\n            - A \"pentadecadecagonal\" appearance of the affected lung\n            - A \"hexadecadecagonal\" appearance of the affected lung\n            - A \"heptadecadecagonal\" appearance of the affected lung\n            - A \"octadecadecagonal\" appearance of the affected lung\n            - A \"nonadecadecagonal\" appearance of the affected lung\n            - A \"decadecadecagonal\" appearance of the affected lung\n            - A \"hendecadecadecagonal\" appearance of the affected lung\n            - A \"dodecadecadecagonal\" appearance of the affected lung\n            - A \"tridecadecadecagonal\" appearance of the affected lung\n            - A \"tetradecadecadecagonal\" appearance of the affected lung\n            - A \"pentadecadecadecagonal\" appearance of the affected lung\n            - A \"hexadecadecadecagonal\" appearance of the affected lung\n            - A \"heptadecadecadecagonal\" appearance of the affected lung\n            - A \"octadecadecadecagonal\" appearance of the affected lung\n            - A \"nonadecadecadecagonal\" appearance of the affected lung\n            - A \"decadecadecadecagonal\" appearance of the affected lung\n            - A \"hendecadecadecadecagonal\" appearance of the affected lung\n            - A \"dodecadecadecadecagonal\" appearance of the affected lung\n            - A \"tridecadecadecadecagonal\" appearance of the affected lung\n            - A \"tetradecadecadecadecagonal\" appearance of the affected lung\n            - A \"pentadecadecadecadecagonal\" appearance of the affected lung\n            - A \"hexadecadecadecadecagonal\" appearance of the affected lung\n            - A \"heptadecadecadecadecagonal\" appearance of the affected lung\n            - A \"octadecadecadecadecagonal\" appearance of the affected lung\n            - A \"nonadecadecadecadecagonal\" appearance of the affected lung\n            - A \"decadecadecadecadecagonal\" appearance of the affected lung\n            - A \"hendecadecadecadecadecagonal\" appearance of the affected lung\n            - A \"dodecadecadecadecad",
+          "accuracy": 0.0955485125584763,
+          "hallucination_score": 0.7617805949766095,
+          "confidence": 1.0
+        }
+      ]
+    }
+  },
+  "baseline": {
+    "accuracy": 0.7,
+    "hallucination_rate": 0.25,
+    "fact_score": 0.75
+  },
+  "improvement": {
+    "hallucination_reduction": -138.62167798212533,
+    "accuracy_improvement": -67.15559872742672
+  },
+  "suggestions": [
+    {
+      "category": "High Priority",
+      "suggestion": "Implement RAG with verified medical knowledge base",
+      "expected_impact": "40-60% reduction in hallucinations"
+    },
+    {
+      "category": "High Priority",
+      "suggestion": "Fine-tune with curated medical QA pairs and implement fact-checking",
+      "expected_impact": "30-50% accuracy improvement"
+    },
+    {
+      "category": "General",
+      "suggestion": "Implement multi-step verification: claim extraction \u2192 fact checking \u2192 response generation",
+      "expected_impact": "Overall quality and reliability improvement"
+    }
+  ],
+  "sample_responses": [
+    {
+      "prompt": "What is the first-line treatment for hypertension?",
+      "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+      "response": "The first-line treatment for hypertension is lifestyle changes, such as reducing salt intake, exercising regularly, and maintaining a healthy weight. If lifestyle changes are not enough to control blood pressure, medications such as ACE inhibitors, angiotensin receptor blockers, and diuretics may be prescribed.\n\n            Explanation:\n            Hypertension is a condition where blood pressure is consistently too high. Aspirin is a nonsteroidal anti-inflammatory drug that reduces pain and inflammation. Heart disease risk factors include high blood pressure, high cholesterol, smoking, and diabetes. The first-line treatment for hypertension is lifestyle changes, such as reducing salt intake, exercising regularly, and maintaining a healthy weight. If lifestyle changes are not enough to control blood pressure, medications such as ACE inhibitors, angiotensin receptor blockers, and diuretics may be prescribed.\n\n            References:\n            - National Heart, Lung, and Blood Institute. (2021, June 16). Hypertension (High Blood Pressure). Retrieved from https://www.nhlbi.nih.gov/health-topics/hypertension\n            - Mayo Clinic. (2022, February 15). Hypertension (High Blood Pressure). Retrieved from https://www.mayoclinic.org/diseases-conditions/high-blood-pressure/symptoms-causes/syc-20373007\n            - American Heart Association. (2021, July 21). High Blood Pressure (Hypertension). Retrieved from https://www.heart.org/en/health-topics/high-blood-pressure/the-facts-about-high-blood-pressure\n\n            Note:\n            This answer is based on the medical context provided and is intended to be used as a reference only. It is not a substitute for medical advice and should not be relied upon for diagnosis or treatment. Always consult a healthcare professional for personalized medical advice.",
+      "accuracy": 0.1546262674492434,
+      "hallucination_score": 0.7014828263536361,
+      "confidence": 1.0
+    },
+    {
+      "prompt": "How does metformin work in type 2 diabetes?",
+      "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+      "response": "Metformin works by reducing the amount of glucose produced by the liver and increasing the body's sensitivity to insulin. This helps to lower blood sugar levels and improve insulin resistance, which is a common problem in type 2 diabetes.\n\n            Explanation: Metformin is a medication used to treat type 2 diabetes. It works by reducing the amount of glucose produced by the liver and increasing the body's sensitivity to insulin. This helps to lower blood sugar levels and improve insulin resistance, which is a common problem in type 2 diabetes. Metformin is often prescribed as part of a treatment plan that also includes diet and exercise. It is generally well-tolerated and has a low risk of side effects.",
+      "accuracy": 0.19350457780973826,
+      "hallucination_score": 0.4425981688761047,
+      "confidence": 1.0
+    },
+    {
+      "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+      "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+      "response": "The most likely diagnosis is a heart attack.\n            The patient's symptoms, including chest pain and radiating to the left arm, are consistent with a heart attack.\n            Other possible diagnoses include angina, a condition where the heart does not receive enough blood, and pericarditis, an inflammation of the heart's outer lining.\n            However, the patient's age and risk factors for heart disease, such as high blood pressure, high cholesterol, smoking, and diabetes, make a heart attack the most likely diagnosis.\n            The patient should be evaluated by a healthcare professional as soon as possible to determine the appropriate treatment.\n\n            Note: This answer is based on the provided medical context and is not a substitute for professional medical advice.",
+      "accuracy": 0.07499200207977964,
+      "hallucination_score": 0.676669865834755,
+      "confidence": 1.0
+    }
+  ],
+  "evaluation_date": "2025-09-08T21:17:16.791132"
+}

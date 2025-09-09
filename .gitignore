@@ -11,4 +11,4 @@ build/
 pip-log.txt
 
 # env secrets
-app/.env
+.env

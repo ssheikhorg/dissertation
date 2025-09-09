@@ -1,205 +1,179 @@
+import glob
 import json
 import os
-from datetime import datetime, timedelta
+from typing import Any
 
-from clients import ModelClient, generate_visualization_data
-from config import settings
-from data import load_baseline, load_test_prompts
-from evaluators import (
-    MedicalModelEvaluator,
-    generate_improvement_suggestions,
-    prepare_bar_chart_data,
-    prepare_radar_data,
-    prepare_scatter_data,
-)
-from fastapi import APIRouter, Form, HTTPException
-from starlette.templating import Jinja2Templates
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
+
+from utils import generate_comparison_metrics
+
+
+class ModelsEnum:
+    """Enum for supported models"""
+
+    LLAMA_2_7B = "llama-2-7b"
+    MISTRAL_7B = "mistral-7b"
+    QWEN_7B = "qwen-7b"
+    MEDITRON_7B = "meditron-7b"
+    BIOMEDGPT = "biomedgpt"
+    GPT_4 = "gpt-4"
+    CLAUDE_3_OPUS = "claude-3-opus"
+    GROK = "grok"
+
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
+# Directory where evaluation results are stored
+RESULTS_DIR = "evaluation_results"
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
-@router.post("/api/evaluate")
-async def evaluate_model(
-    model_name: str = Form(...),
-    dataset: str = Form("pubmed_qa"),
-    sample_count: int = Form(5),
-    mitigation: str = Form(None),
-):
-    """Evaluate a single model with focus on hallucination metrics"""
+# Directory for pre-generated visualizations
+VISUALIZATION_DIR = "visualizations"
+os.makedirs(VISUALIZATION_DIR, exist_ok=True)
+
+
+@router.get("/api/evaluation/{model_name}")
+async def get_evaluation_results(model_name: str):
+    """Get evaluation results for a specific model from downloaded files"""
     try:
-        # Load prompts
-        prompts = load_test_prompts(dataset, min(sample_count, settings.datasets.max_samples))
+        # Look for the comprehensive results file in model-specific subdirectory
+        model_dir = os.path.join(RESULTS_DIR, model_name)
+        if not os.path.exists(model_dir):
+            raise HTTPException(status_code=404, detail=f"No evaluation directory found for {model_name}")
 
-        # Initialize model client
-        client = ModelClient.get_client(model_name, mitigation=mitigation)
+        # Look for comprehensive results file
+        pattern = os.path.join(model_dir, f"{model_name}_comprehensive_results.json")
+        files = glob.glob(pattern)
 
-        # Evaluate with medical-specific metrics
-        evaluator = MedicalModelEvaluator()
-        results = evaluator.evaluate(client, prompts)
+        if not files:
+            # Fallback to UI export data
+            pattern = os.path.join(model_dir, f"{model_name}_ui_export_data.json")
+            files = glob.glob(pattern)
 
-        # Get baseline for comparison
-        baseline = load_baseline(model_name, dataset)
+        if not files:
+            # Fallback: look for any JSON file in the model directory
+            pattern = os.path.join(model_dir, "*.json")
+            files = glob.glob(pattern)
 
-        # Calculate improvement metrics
-        hallucination_reduction = (
-            ((baseline["hallucination_rate"] - results["hallucination_rate"]) / baseline["hallucination_rate"] * 100)
-            if baseline["hallucination_rate"] > 0
-            else 0
-        )
+        if not files:
+            raise HTTPException(status_code=404, detail=f"No evaluation results found for {model_name}")
 
-        # Prepare response data
-        response_data = {
-            "model": model_name,
-            "dataset": dataset,
-            "sample_count": sample_count,
-            "metrics": results,
-            "baseline": baseline,
-            "improvement": {
-                "hallucination_reduction": hallucination_reduction,
-                "accuracy_improvement": ((results["accuracy"] - baseline["accuracy"]) / baseline["accuracy"] * 100)
-                if baseline["accuracy"] > 0
-                else 0,
-            },
-            "suggestions": generate_improvement_suggestions(results, baseline),
-            "sample_responses": results.get("sample_responses", [])[:3],
-        }
+        # Use the most recent file
+        latest_file = max(files, key=os.path.getctime)
 
-        # Save evaluation result to file
-        eval_dir = "evaluations"
-        os.makedirs(eval_dir, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{model_name}_{dataset}_{timestamp}.json"
-        filepath = os.path.join(eval_dir, filename)
+        with open(latest_file) as f:
+            results = json.load(f)
 
-        with open(filepath, "w") as f:
-            json.dump(response_data, f, indent=2)
+        return results
 
-        return response_data
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail=f"Error loading results: {str(e)}")
+
+@router.get("/api/models/available")
+async def get_available_models():
+    """Get list of models that have evaluation results"""
+    models = set()
+
+    # Look for all model directories
+    if not os.path.exists(RESULTS_DIR):
+        return {"models": []}
+
+    for item in os.listdir(RESULTS_DIR):
+        item_path = os.path.join(RESULTS_DIR, item)
+        if os.path.isdir(item_path):
+            # Check if this directory has any JSON files
+            json_files = glob.glob(os.path.join(item_path, "*.json"))
+            if json_files:
+                models.add(item)
+
+    return {"models": sorted(list(models))}
 
 
-@router.post("/api/compare")
-async def api_compare_models(
-    model1: str = Form(...),
-    model2: str = Form(...),
-    dataset: str = Form("pubmed_qa"),
-    sample_count: int = Form(5),
-):
-    """Compare two models with focus on hallucination metrics"""
+@router.get("/api/visualization/{model_name}/{viz_type}")
+async def get_visualization(model_name: str, viz_type: str):
+    """Get pre-generated visualization images"""
+    viz_mapping = {
+        "accuracy_bar": "accuracy_bar_chart.png",
+        "hallucination_rate_bar": "hallucination_rate_bar_chart.png",
+        "confidence_bar": "confidence_bar_chart.png",
+        "radar": "radar_chart.png",
+        "comparison_table": "comparison_table.html",
+    }
+
+    if viz_type not in viz_mapping:
+        raise HTTPException(status_code=404, detail=f"Visualization type {viz_type} not supported")
+
+    file_name = viz_mapping[viz_type]
+    file_path = os.path.join(VISUALIZATION_DIR, model_name, file_name)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Visualization file {file_name} not found")
+
+    if viz_type == "comparison_table":
+        with open(file_path) as f:
+            content = f.read()
+        return HTMLResponse(content)
+    else:
+        return FileResponse(file_path)
+
+
+@router.get("/api/model-metrics/{model_name}")
+async def get_model_metrics(model_name: str):
+    """Get just the metrics for a model"""
     try:
-        prompts = load_test_prompts(dataset, min(sample_count, settings.datasets.max_samples))
-
-        # Evaluate both models
-        evaluator = MedicalModelEvaluator()
-
-        # Evaluate first model
-        client1 = ModelClient.get_client(model1)
-        results1 = evaluator.evaluate(client1, prompts)
-
-        # Evaluate second model
-        client2 = ModelClient.get_client(model2)
-        results2 = evaluator.evaluate(client2, prompts)
-
-        # Prepare comparison data
-        comparison_data = {
-            "models": {
-                model1: results1,
-                model2: results2,
-            },
-            "comparison": {
-                "hallucination_difference": results1["hallucination_rate"] - results2["hallucination_rate"],
-                "accuracy_difference": results1["accuracy"] - results2["accuracy"],
-                "better_model": (
-                    model1 if results1["hallucination_rate"] < results2["hallucination_rate"] else model2
-                ),
-            },
-        }
-
-        # Save comparison result to file
-        eval_dir = "evaluations"
-        os.makedirs(eval_dir, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"comparison_{model1}_vs_{model2}_{dataset}_{timestamp}.json"
-        filepath = os.path.join(eval_dir, filename)
-
-        with open(filepath, "w") as f:
-            json.dump(comparison_data, f, indent=2)
-
-        return comparison_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/api/visualize")
-async def generate_visualization(
-    visualization_type: str,
-    metric: str,
-    models: list[str] = None,
-):
-    """Generate visualization data for the dashboard"""
-    try:
-        if models is None:
-            models = list(ModelClient._registry.keys())
-
-        # Generate visualization data
-        general_df, bias_df = await generate_visualization_data(
-            model_names=models,
-            metrics=[metric],
-            n_samples=50,  # Smaller sample for faster visualization
-        )
-
-        # Prepare data based on visualization type
-        if visualization_type == "bar":
-            # Prepare data for bar chart
-            chart_data = prepare_bar_chart_data(general_df, metric)
-        elif visualization_type == "radar":
-            # Prepare data for radar chart
-            chart_data = prepare_radar_data(general_df, models, [metric])
-        elif visualization_type == "scatter":
-            # Prepare data for scatter plot
-            chart_data = prepare_scatter_data(general_df, metric)
+        results = await get_evaluation_results(model_name)
+        # Extract metrics from different possible result structures
+        if "evaluation_results" in results and "metrics" in results["evaluation_results"]:
+            metrics = results["evaluation_results"]["metrics"]
+        elif "metrics" in results:
+            metrics = results["metrics"]
         else:
-            return {"error": "Unsupported visualization type"}
+            metrics = {}
 
-        return chart_data
+        return {"model": model_name, "metrics": metrics}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/recent-evaluations")
-async def get_recent_evaluations():
-    """Get recently completed evaluations for the dashboard"""
+@router.get("/api/compare")
+async def compare_models(model1: str, model2: str):
+    """Compare two models using pre-generated results"""
+    comparison_data = {}
+
+    for model_name in [model1, model2]:
+        try:
+            metrics_data = await get_model_metrics(model_name)
+            comparison_data[model_name] = metrics_data
+        except Exception as e:
+            comparison_data[model_name] = {"error": str(e)}
+
+    # Generate comparative analysis
+    comparison_metrics = await generate_comparison_metrics(comparison_data)
+
+    return {"models": comparison_data, "comparison": comparison_metrics}
+
+
+async def generate_fallback_visualization(model_name: str, viz_type: str):
+    """Generate a simple visualization if pre-generated file is missing"""
     try:
-        eval_dir = "evaluations"
-        os.makedirs(eval_dir, exist_ok=True)
+        # Get model data to generate a chart
+        results = await get_evaluation_results(model_name)
+        metrics = results.get('metrics', {}) or results.get('evaluation_results', {}).get('metrics', {})
 
-        recent_evaluations = []
+        if not metrics:
+            raise HTTPException(status_code=404, detail="No metrics available for visualization")
 
-        # Look for evaluation files from last 7 days
-        for filename in os.listdir(eval_dir):
-            if filename.endswith(".json"):
-                filepath = os.path.join(eval_dir, filename)
-                file_time = datetime.fromtimestamp(os.path.getmtime(filepath))
-
-                if datetime.now() - file_time < timedelta(days=7):
-                    with open(filepath) as f:
-                        eval_data = json.load(f)
-                        recent_evaluations.append(
-                            {
-                                "model": eval_data.get("model", "Unknown"),
-                                "dataset": eval_data.get("dataset", "Unknown"),
-                                "timestamp": file_time.isoformat(),
-                                "hallucination_rate": eval_data.get("metrics", {}).get("hallucination_rate", 0),
-                                "accuracy": eval_data.get("metrics", {}).get("accuracy", 0),
-                            }
-                        )
-
-        # Sort by most recent
-        recent_evaluations.sort(key=lambda x: x["timestamp"], reverse=True)
-
-        return recent_evaluations[:5]  # Return top 5 most recent
+        # For now, just return a message that we need to generate visualizations
+        # In a real implementation, you could generate charts dynamically here
+        raise HTTPException(
+            status_code=404,
+            detail=f"Pre-generated visualization not found. Please generate visualizations for {model_name} first."
+        )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail=f"Error generating visualization: {str(e)}")
