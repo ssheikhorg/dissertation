@@ -1,0 +1,184 @@
+{
+  "model": "gpt-3.5-turbo",
+  "evaluation_date": "2025-09-09T14:34:07.486244",
+  "metrics": {
+    "accuracy": 0.45115852187055566,
+    "hallucination_rate": 0.5062032579184444,
+    "confidence": 1.0,
+    "response_length": 184.88888888888889,
+    "consistency": 0.8467800433290774
+  },
+  "dataset_metrics": {
+    "pubmedqa": {
+      "accuracy": 0.18027653279952327,
+      "hallucination_rate": 0.5878893868801908,
+      "confidence": 1.0,
+      "response_length": 174.0,
+      "consistency": 0.8140106459617791
+    },
+    "medqa": {
+      "accuracy": 0.5944795278704352,
+      "hallucination_rate": 0.5388748555184926,
+      "confidence": 1.0,
+      "response_length": 120.5,
+      "consistency": 0.9224662030213859
+    },
+    "mimic_cxr": {
+      "accuracy": 0.21116349886956118,
+      "hallucination_rate": 0.6822012671188422,
+      "confidence": 1.0,
+      "response_length": 211.5,
+      "consistency": 0.9881392612711037
+    }
+  },
+  "dataset_details": {
+    "pubmedqa": {
+      "model": "gpt-3.5-turbo",
+      "dataset": "pubmedqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.18027653279952327,
+        "hallucination_rate": 0.5878893868801908,
+        "confidence": 1.0,
+        "response_length": 174.0,
+        "consistency": 0.8140106459617791
+      },
+      "dataset_metrics": {},
+      "sample_responses": [
+        {
+          "prompt": "What is the first-line treatment for hypertension?",
+          "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+          "response": "The first-line treatment for hypertension is typically lifestyle modifications such as a healthy diet, regular exercise, and weight management. If these measures are not sufficient, medication may be prescribed.",
+          "accuracy": 0.06530314770397087,
+          "hallucination_score": 0.7738787409184117,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "How does metformin work in type 2 diabetes?",
+          "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+          "response": "Metformin works in type 2 diabetes by decreasing glucose production in the liver and improving insulin sensitivity in the body's tissues.",
+          "accuracy": 0.29524991789507565,
+          "hallucination_score": 0.40190003284196985,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "medqa": {
+      "model": "gpt-3.5-turbo",
+      "dataset": "medqa",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.5944795278704352,
+        "hallucination_rate": 0.5388748555184926,
+        "confidence": 1.0,
+        "response_length": 120.5,
+        "consistency": 0.9224662030213859
+      },
+      "dataset_metrics": {},
+      "sample_responses": [
+        {
+          "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+          "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+          "response": "The most likely diagnosis for a 45-year-old patient presenting with chest pain radiating to the left arm is a heart attack (myocardial infarction).",
+          "accuracy": 0.34231170209056666,
+          "hallucination_score": 0.6164086524971067,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "What is the gold standard test for diagnosing pulmonary embolism?",
+          "reference": "CT pulmonary angiography is the gold standard for diagnosing pulmonary embolism.",
+          "response": "The gold standard test for diagnosing pulmonary embolism is a CT pulmonary angiography (CTPA).",
+          "accuracy": 0.8466473536503039,
+          "hallucination_score": 0.4613410585398785,
+          "confidence": 1.0
+        }
+      ]
+    },
+    "mimic_cxr": {
+      "model": "gpt-3.5-turbo",
+      "dataset": "mimic_cxr",
+      "sample_count": 2,
+      "metrics": {
+        "accuracy": 0.21116349886956118,
+        "hallucination_rate": 0.6822012671188422,
+        "confidence": 1.0,
+        "response_length": 211.5,
+        "consistency": 0.9881392612711037
+      },
+      "dataset_metrics": {},
+      "sample_responses": [
+        {
+          "prompt": "Describe the findings in a chest X-ray showing cardiomegaly and pulmonary edema.",
+          "reference": "Cardiomegaly appears as an enlarged cardiac silhouette, while pulmonary edema manifests as bilateral interstitial opacities and Kerley B lines.",
+          "response": "Cardiomegaly is an enlargement of the heart, which can be seen on a chest X-ray as an enlarged heart silhouette. Pulmonary edema is the accumulation of fluid in the lungs, which can appear as increased density in the lung fields on a chest X-ray.",
+          "accuracy": 0.15748201235846843,
+          "hallucination_score": 0.6703405283899461,
+          "confidence": 1.0
+        },
+        {
+          "prompt": "What radiographic signs suggest pneumothorax?",
+          "reference": "Pneumothorax is characterized by a visible visceral pleural edge, absence of lung markings peripheral to this edge, and possible mediastinal shift.",
+          "response": "Radiographic signs of pneumothorax include the presence of a visible pleural line, absence of lung markings beyond the pleural line, and the presence of a visceral pleural line.",
+          "accuracy": 0.26484498538065393,
+          "hallucination_score": 0.6940620058477385,
+          "confidence": 1.0
+        }
+      ]
+    }
+  },
+  "sample_responses": [
+    {
+      "id": 1,
+      "prompt": "What is the first-line treatment for hypertension?",
+      "reference": "First-line treatments for hypertension include thiazide diuretics, ACE inhibitors, angiotensin II receptor blockers, and calcium channel blockers.",
+      "response": "The first-line treatment for hypertension typically involves lifestyle changes such as a healthy diet, regular exercise, and weight management. If lifestyle changes are not sufficient, medications such as diuretics, ACE inhibitors, ARBs, or calcium channel blockers may be prescribed.",
+      "accuracy": 0.26764365544533214,
+      "hallucination_score": 0.6929425378218672,
+      "dataset": "medical_qa"
+    },
+    {
+      "id": 2,
+      "prompt": "How does metformin work in type 2 diabetes?",
+      "reference": "Metformin decreases hepatic glucose production, reduces intestinal glucose absorption, and improves insulin sensitivity.",
+      "response": "Metformin works by reducing glucose production in the liver and improving insulin sensitivity in the body, helping to lower blood sugar levels in individuals with type 2 diabetes.",
+      "accuracy": 0.24312316536630288,
+      "hallucination_score": 0.42275073385347894,
+      "dataset": "medical_qa"
+    },
+    {
+      "id": 3,
+      "prompt": "A 45-year-old patient presents with chest pain radiating to the left arm. What is the most likely diagnosis?",
+      "reference": "Chest pain radiating to the left arm is characteristic of myocardial infarction and requires immediate cardiac evaluation.",
+      "response": "The most likely diagnosis for a 45-year-old patient presenting with chest pain radiating to the left arm is a heart attack (myocardial infarction).",
+      "accuracy": 0.34231170209056666,
+      "hallucination_score": 0.6164086524971067,
+      "dataset": "medical_qa"
+    }
+  ],
+  "suggestions": [
+    {
+      "category": "High Priority",
+      "suggestion": "Implement RAG with verified medical knowledge base",
+      "expected_impact": "40-60% reduction in hallucinations"
+    },
+    {
+      "category": "High Priority",
+      "suggestion": "Fine-tune with curated medical QA pairs and implement fact-checking",
+      "expected_impact": "30-50% accuracy improvement"
+    },
+    {
+      "category": "General",
+      "suggestion": "Implement multi-step verification: claim extraction \u2192 fact checking \u2192 response generation",
+      "expected_impact": "Overall quality and reliability improvement"
+    }
+  ],
+  "improvement": {
+    "hallucination_reduction": -102.48130316737777,
+    "accuracy_improvement": -35.54878258992061
+  },
+  "baseline": {
+    "accuracy": 0.7,
+    "hallucination_rate": 0.25,
+    "fact_score": 0.75
+  }
+}

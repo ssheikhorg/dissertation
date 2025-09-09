@@ -1,7 +1,6 @@
 import glob
 import json
 import os
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
