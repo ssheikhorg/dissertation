@@ -125,8 +125,11 @@ async def get_visualization(model_name: str, viz_type: str):
         "confidence_bar": "confidence_bar_chart.png",
         "radar": "radar_chart.png",
         "comparison_table": "comparison_table.html",
+        "dataset_comparison": "dataset_comparison_chart.png",
+        "medqa_radar": "medqa_radar_chart.png",
+        "mimic_cxr_radar": "mimic_cxr_radar_chart.png",
+        "pubmedqa_radar": "pubmedqa_radar_chart.png",
     }
-
     if viz_type not in viz_mapping:
         raise HTTPException(status_code=404, detail=f"Visualization type {viz_type} not supported")
 
