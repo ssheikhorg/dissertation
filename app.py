@@ -34,6 +34,15 @@ class PersonaInterviewServiceStack(Stack):
             code=lambda_.Code.from_asset("app"),
             runtime=lambda_.Runtime.PYTHON_3_12,
             allow_public_subnet=True,
+            layers=[
+                lambda_.LayerVersion(
+                    self,
+                    f"{project_name}-layer",
+                    layer_version_name=f"{project_name}-layer",
+                    compatible_runtimes=[lambda_.Runtime.PYTHON_3_12],
+                    code=lambda_.Code.from_asset("dependencies-layer.zip"),
+                )
+            ]
         )
 
         # Adding due to APIGW timeout when using gemini

@@ -2,7 +2,4 @@ fastapi[standard]
 uvicorn[standard]
 jinja2
 python-multipart
-
-aws-cdk-lib==2.214.0
-constructs>=10.4.2
 mangum
