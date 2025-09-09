@@ -1,4 +1,3 @@
-import glob
 import json
 import os
 from pathlib import Path
@@ -10,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+EVALUATION_PATH = Path(__file__).parent / "model_evaluations"
 
 
 async def generate_comparison_metrics(models_data: dict[str, Any]) -> dict[str, Any]:
@@ -25,8 +25,6 @@ async def generate_comparison_metrics(models_data: dict[str, Any]) -> dict[str, 
                 values[model_name] = data["metrics"][metric]
 
         if values:
-            # For accuracy and confidence, higher is better
-            # For hallucination_rate, lower is better
             if metric in ["accuracy", "confidence", "consistency"]:
                 best_model = max(values.items(), key=lambda x: x[1])[0]
                 worst_model = min(values.items(), key=lambda x: x[1])[0]
@@ -49,34 +47,31 @@ async def generate_comparison_metrics(models_data: dict[str, Any]) -> dict[str, 
 async def get_evaluation_results(model_name: str):
     """Get evaluation results for a specific model from downloaded files"""
     try:
-        url = f"model_evaluations/{model_name}_comprehensive_results.json"
-        file_path = Path(__file__).parent.parent / url
-        files = glob.glob(str(file_path))
+        base_dir = EVALUATION_PATH / model_name / "data"
 
-        if not files:
-            # Fallback to UI export data
-            pattern = os.path.join(model_dir, f"{model_name}_ui_export_data.json")
-            files = glob.glob(pattern)
+        possible_files = [
+            base_dir / f"{model_name}_comprehensive_results.json",
+            base_dir / f"{model_name}_ui_export_data.json",
+            *base_dir.glob("*.json"),  # Any other JSON files
+        ]
 
-        if not files:
-            # Fallback: look for any JSON file in the model directory
-            pattern = os.path.join(model_dir, "*.json")
-            files = glob.glob(pattern)
+        # Filter to only existing files
+        existing_files = [f for f in possible_files if f.exists()]
 
-        if not files:
+        if not existing_files:
             raise HTTPException(status_code=404, detail=f"No evaluation results found for {model_name}")
 
         # Use the most recent file
-        latest_file = max(files, key=os.path.getctime)
+        latest_file = max(existing_files, key=os.path.getctime)
 
         with open(latest_file) as f:
             results = json.load(f)
 
-        if "dataset_metrics" in results:
-            results["dataset_metrics"] = results["dataset_metrics"]
-        elif "dataset_details" in results:
-            results["dataset_metrics"] = results["dataset_details"]
+        # Handle different result formats
+        results["dataset_metrics"] = results.get("dataset_metrics", results.get("dataset_details", {}))
+
         return results
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading results: {str(e)}")
 
@@ -93,17 +88,11 @@ async def get_dataset_metrics(model_name: str, dataset: str = None):
         if dataset:
             # Return specific dataset metrics if requested
             if dataset in dataset_metrics:
-                return {
-                    "model": model_name,
-                    "dataset": dataset,
-                    "metrics": dataset_metrics[dataset].get("metrics", {}),
-                }
+                return {"model": model_name, "dataset": dataset, "metrics": dataset_metrics[dataset]}
             else:
                 raise HTTPException(status_code=404, detail=f"Dataset {dataset} not found for model {model_name}")
         else:
-            # Return all dataset metrics
             return {"model": model_name, "dataset_metrics": dataset_metrics}
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -113,17 +102,16 @@ async def get_available_models():
     """Get list of models that have evaluation results"""
     models = set()
 
-    # Look for all model directories
-    if not os.path.exists(RESULTS_DIR):
+    if not EVALUATION_PATH.exists():
         return {"models": []}
 
-    for item in os.listdir(RESULTS_DIR):
-        item_path = os.path.join(RESULTS_DIR, item)
-        if os.path.isdir(item_path):
-            # Check if this directory has any JSON files
-            json_files = glob.glob(os.path.join(item_path, "*.json"))
-            if json_files:
-                models.add(item)
+    for item in EVALUATION_PATH.iterdir():
+        if item.is_dir():
+            data_dir = item / "data"
+            if data_dir.exists():
+                json_files = list(data_dir.glob("*.json"))
+                if json_files:
+                    models.add(item.name)
 
     return {"models": sorted(list(models))}
 
@@ -143,10 +131,10 @@ async def get_visualization(model_name: str, viz_type: str):
         raise HTTPException(status_code=404, detail=f"Visualization type {viz_type} not supported")
 
     file_name = viz_mapping[viz_type]
-    file_path = os.path.join(VISUALIZATION_DIR, model_name, file_name)
+    file_path = EVALUATION_PATH / model_name / "charts" / file_name
 
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail=f"Visualization file {file_name} not found")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Visualization file {file_name} not found for model {model_name}")
 
     if viz_type == "comparison_table":
         with open(file_path) as f:
