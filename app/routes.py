@@ -38,12 +38,10 @@ os.makedirs(VISUALIZATION_DIR, exist_ok=True)
 async def get_evaluation_results(model_name: str):
     """Get evaluation results for a specific model from downloaded files"""
     try:
-        # Look for the comprehensive results file in model-specific subdirectory
         model_dir = os.path.join(RESULTS_DIR, model_name)
         if not os.path.exists(model_dir):
             raise HTTPException(status_code=404, detail=f"No evaluation directory found for {model_name}")
 
-        # Look for comprehensive results file
         pattern = os.path.join(model_dir, f"{model_name}_comprehensive_results.json")
         files = glob.glob(pattern)
 
