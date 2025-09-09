@@ -387,6 +387,10 @@
 
         resultsList.innerHTML = filteredResults.map(result => {
             const metrics = result.data.metrics || result.data.evaluation_results?.metrics || {};
+            const datasetMetrics = result.data.dataset_metrics || {};
+            const datasetNames = Object.keys(datasetMetrics).filter(name =>
+                name !== "combined" && datasetMetrics[name] && datasetMetrics[name].metrics
+            );
 
             return `
                 <div class="saved-result-card">
@@ -395,6 +399,13 @@
                     ${metrics.accuracy ? `<p><strong>Accuracy:</strong> ${(metrics.accuracy * 100).toFixed(1)}%</p>` : ''}
                     ${metrics.hallucination_rate ? `<p><strong>Hallucination Rate:</strong> ${(metrics.hallucination_rate * 100).toFixed(1)}%</p>` : ''}
                     ${metrics.confidence ? `<p><strong>Confidence:</strong> ${(metrics.confidence * 100).toFixed(1)}%</p>` : ''}
+
+                    ${datasetNames.length > 0 ? `
+                    <div class="dataset-info">
+                        <p><strong>Datasets:</strong> ${datasetNames.join(', ')}</p>
+                    </div>
+                    ` : ''}
+
                     <div class="result-actions">
                         <button onclick="viewModelDetails('${result.model}')">View Details</button>
                         <button onclick="useForComparison('${result.model}')">Use in Comparison</button>
@@ -503,11 +514,38 @@
         }
     }
 
+    // function to handle dataset visualization
+    async function loadDatasetVisualization(modelName, datasetName) {
+        try {
+            const response = await fetch(`/api/dataset-metrics/${modelName}?dataset=${datasetName}`);
+            const data = await response.json();
+
+            return `
+                <div class="dataset-metrics">
+                    <h4>${datasetName.toUpperCase()} Dataset Performance</h4>
+                    ${data.metrics.accuracy ? `<p><strong>Accuracy:</strong> ${(data.metrics.accuracy * 100).toFixed(1)}%</p>` : ''}
+                    ${data.metrics.hallucination_rate ? `<p><strong>Hallucination Rate:</strong> ${(data.metrics.hallucination_rate * 100).toFixed(1)}%</p>` : ''}
+                    ${data.metrics.confidence ? `<p><strong>Confidence:</strong> ${(data.metrics.confidence * 100).toFixed(1)}%</p>` : ''}
+                </div>
+            `;
+        } catch (error) {
+            console.error(`Error loading dataset metrics for ${datasetName}:`, error);
+            return `<p class="error">Error loading ${datasetName} metrics: ${error.message}</p>`;
+        }
+    }
+
+    // Update the formatEvaluationResults function to include dataset metrics
     async function formatEvaluationResults(data, targetId) {
         const container = document.getElementById(targetId);
         const metrics = data.metrics || data.evaluation_results?.metrics || {};
+        const datasetMetrics = data.dataset_metrics || {};
         const sampleResponses = data.sample_responses || data.evaluation_results?.sample_responses || [];
         const modelName = data.model || 'Unknown Model';
+
+        // Get dataset names
+        const datasetNames = Object.keys(datasetMetrics).filter(name =>
+            name !== "combined" && datasetMetrics[name] && datasetMetrics[name].metrics
+        );
 
         container.innerHTML = `
             <h2>Evaluation Results: ${modelName}</h2>
@@ -534,6 +572,22 @@
                 </div>
                 ` : ''}
             </div>
+
+            ${datasetNames.length > 0 ? `
+            <div class="dataset-performance">
+                <h3>Dataset Performance</h3>
+                <div class="dataset-tabs">
+                    ${datasetNames.map(dataset => `
+                        <div class="dataset-tab" onclick="switchDatasetTab('${dataset}')">
+                            ${dataset.toUpperCase()}
+                        </div>
+                    `).join('')}
+                </div>
+                <div id="dataset-content" class="dataset-content">
+                    <div class="dataset-loading">Loading dataset metrics...</div>
+                </div>
+            </div>
+            ` : ''}
 
             <!-- Visualization Tabs -->
             <div class="viz-tabs-container">
@@ -572,6 +626,7 @@
                         <p><strong>Prompt:</strong> ${response.prompt || 'N/A'}</p>
                         <p><strong>Reference:</strong> ${response.reference || 'N/A'}</p>
                         <p><strong>Model Response:</strong> ${response.response || 'N/A'}</p>
+                        ${response.dataset ? `<p><strong>Dataset:</strong> ${response.dataset}</p>` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -580,6 +635,37 @@
 
         // Load the first visualization (accuracy chart)
         loadVizContent('accuracy_bar');
+
+        // Load dataset metrics if available
+        if (datasetNames.length > 0) {
+            loadDatasetContent(datasetNames[0]);
+        }
+    }
+
+    // Add functions to handle dataset tabs
+    function switchDatasetTab(datasetName) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.dataset-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Add active class to clicked tab
+        document.querySelector(`.dataset-tab[onclick="switchDatasetTab('${datasetName}')"]`).classList.add('active');
+
+        // Load dataset content
+        loadDatasetContent(datasetName);
+    }
+
+    async function loadDatasetContent(datasetName) {
+        const datasetContainer = document.getElementById('dataset-content');
+        datasetContainer.innerHTML = '<div class="dataset-loading">Loading dataset metrics...</div>';
+
+        try {
+            const content = await loadDatasetVisualization(currentModelName, datasetName);
+            datasetContainer.innerHTML = content;
+        } catch (error) {
+            datasetContainer.innerHTML = `<p class="error">Error loading dataset metrics: ${error.message}</p>`;
+        }
     }
 
     function switchVizTab(vizType) {
@@ -633,6 +719,11 @@
     function formatComparisonResults(data, targetId) {
         const container = document.getElementById(targetId);
 
+        // Check if any model has dataset metrics
+        const hasDatasetMetrics = Object.values(data.models).some(model =>
+            model.dataset_metrics && Object.keys(model.dataset_metrics).length > 0
+        );
+
         container.innerHTML = `
             <h2>Model Comparison Results</h2>
 
@@ -646,6 +737,23 @@
                         <p><strong>Difference:</strong> ${(comparison.range * 100).toFixed(1)}%</p>
                     </div>
                 `).join('')}
+            </div>
+            ` : ''}
+
+            ${hasDatasetMetrics ? `
+            <div class="dataset-comparison">
+                <h3>Dataset Performance Comparison</h3>
+                <div class="dataset-selector">
+                    <label for="dataset-select">Select Dataset:</label>
+                    <select id="dataset-select" onchange="updateDatasetComparison()">
+                        <option value="pubmedqa">PubMedQA</option>
+                        <option value="medqa">MedQA</option>
+                        <option value="mimic_cxr">MIMIC-CXR</option>
+                    </select>
+                </div>
+                <div id="dataset-comparison-chart-container" class="chart-container">
+                    <canvas id="dataset-comparison-chart"></canvas>
+                </div>
             </div>
             ` : ''}
 
@@ -674,6 +782,17 @@
                             ${modelData.metrics.accuracy ? `<p>Accuracy: ${(modelData.metrics.accuracy * 100).toFixed(1)}%</p>` : ''}
                             ${modelData.metrics.hallucination_rate ? `<p>Hallucination Rate: ${(modelData.metrics.hallucination_rate * 100).toFixed(1)}%</p>` : ''}
                             ${modelData.metrics.confidence ? `<p>Confidence: ${(modelData.metrics.confidence * 100).toFixed(1)}%</p>` : ''}
+
+                            ${modelData.dataset_metrics ? `
+                            <div class="dataset-metrics-summary">
+                                <p><strong>Dataset Performance:</strong></p>
+                                ${Object.entries(modelData.dataset_metrics).map(([dataset, metrics]) => `
+                                    ${metrics.metrics ? `
+                                    <p>${dataset}: ${(metrics.metrics.accuracy * 100).toFixed(1)}% acc, ${(metrics.metrics.hallucination_rate * 100).toFixed(1)}% halluc</p>
+                                    ` : ''}
+                                `).join('')}
+                            </div>
+                            ` : ''}
                         ` : modelData.error ? `
                             <p class="error-message">Error: ${modelData.error}</p>
                         ` : `
@@ -688,7 +807,82 @@
         window.comparisonData = data;
 
         // Auto-generate a comparison chart
-        setTimeout(() => createComparisonChart(), 100);
+        setTimeout(() => {
+            createComparisonChart();
+            if (hasDatasetMetrics) {
+                updateDatasetComparison();
+            }
+        }, 100);
+    }
+
+    // Add function to update dataset comparison chart
+    function updateDatasetComparison() {
+        const data = window.comparisonData || {};
+        const datasetSelect = document.getElementById('dataset-select');
+        const datasetName = datasetSelect ? datasetSelect.value : 'pubmedqa';
+        const metric = 'accuracy'; // Default metric for dataset comparison
+
+        const chartContainer = document.getElementById('dataset-comparison-chart-container');
+        const canvas = document.getElementById('dataset-comparison-chart');
+
+        if (!data.models || Object.keys(data.models).length === 0) {
+            chartContainer.innerHTML = '<p>No dataset comparison data available.</p>';
+            return;
+        }
+
+        // Prepare data for chart
+        const models = Object.keys(data.models);
+        const values = models.map(model => {
+            const datasetMetrics = data.models[model].dataset_metrics || {};
+            return datasetMetrics[datasetName] ?
+                (datasetMetrics[datasetName].metrics || {})[metric] || 0 : 0;
+        });
+
+        const metricLabel = metric.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const colors = generateColors(models.length);
+
+        // Destroy previous chart if it exists
+        if (charts.datasetComparisonChart) {
+            charts.datasetComparisonChart.destroy();
+        }
+
+        // Create new chart
+        const ctx = canvas.getContext('2d');
+        charts.datasetComparisonChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: models,
+                datasets: [{
+                    label: `${metricLabel} on ${datasetName.toUpperCase()}`,
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: colors.map(color => color.replace('0.6', '1')),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Dataset Performance - ${datasetName.toUpperCase()}`,
+                        font: { size: 16 }
+                    },
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1,
+                        ticks: {
+                            stepSize: 0.2
+                        }
+                    }
+                }
+            }
+        });
     }
 
     function createComparisonChart() {
@@ -792,10 +986,30 @@
 
         const modal = document.createElement('div');
         modal.className = 'modal';
+
+        // Format dataset metrics for display
+        let datasetMetricsHTML = '';
+        if (result.data.dataset_metrics) {
+            datasetMetricsHTML = `<h3>Dataset Metrics</h3>`;
+            for (const [dataset, metrics] of Object.entries(result.data.dataset_metrics)) {
+                if (metrics && metrics.metrics) {
+                    datasetMetricsHTML += `
+                        <div class="dataset-metric">
+                            <h4>${dataset.toUpperCase()}</h4>
+                            <p>Accuracy: ${(metrics.metrics.accuracy * 100).toFixed(1)}%</p>
+                            <p>Hallucination Rate: ${(metrics.metrics.hallucination_rate * 100).toFixed(1)}%</p>
+                            <p>Confidence: ${(metrics.metrics.confidence * 100).toFixed(1)}%</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
         modal.innerHTML = `
             <div class="modal-content">
                 <span class="close" onclick="this.parentElement.parentElement.remove()">&times;</span>
                 <h2>Evaluation Details: ${modelName}</h2>
+                ${datasetMetricsHTML}
                 <pre>${JSON.stringify(result.data, null, 2)}</pre>
             </div>
         `;

@@ -1,49 +1,57 @@
 import glob
 import json
 import os
+from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from utils import generate_comparison_metrics
-
-
-class ModelsEnum:
-    """Enum for supported models"""
-
-    LLAMA_2_7B = "llama-2-7b"
-    MISTRAL_7B = "mistral-7b"
-    QWEN_7B = "qwen-7b"
-    MEDITRON_7B = "meditron-7b"
-    BIOMEDGPT = "biomedgpt"
-    GPT_4 = "gpt-4"
-    CLAUDE_3_OPUS = "claude-3-opus"
-    GROK = "grok"
-
-
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-# Directory where evaluation results are stored
-RESULTS_DIR = "evaluation_results"
-os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# Directory for pre-generated visualizations
-VISUALIZATION_DIR = "visualizations"
-os.makedirs(VISUALIZATION_DIR, exist_ok=True)
+async def generate_comparison_metrics(models_data: dict[str, Any]) -> dict[str, Any]:
+    """Generate comparative metrics between models"""
+    comparison = {}
+    metrics_to_compare = ["accuracy", "hallucination_rate", "confidence", "response_length", "consistency"]
+
+    for metric in metrics_to_compare:
+        values = {}
+
+        for model_name, data in models_data.items():
+            if "metrics" in data and metric in data["metrics"]:
+                values[model_name] = data["metrics"][metric]
+
+        if values:
+            # For accuracy and confidence, higher is better
+            # For hallucination_rate, lower is better
+            if metric in ["accuracy", "confidence", "consistency"]:
+                best_model = max(values.items(), key=lambda x: x[1])[0]
+                worst_model = min(values.items(), key=lambda x: x[1])[0]
+            else:  # hallucination_rate
+                best_model = min(values.items(), key=lambda x: x[1])[0]
+                worst_model = max(values.items(), key=lambda x: x[1])[0]
+
+            comparison[metric] = {
+                "best_model": best_model,
+                "worst_model": worst_model,
+                "range": max(values.values()) - min(values.values()),
+                "average": sum(values.values()) / len(values),
+                "values": values,
+            }
+
+    return comparison
 
 
 @router.get("/api/evaluation/{model_name}")
 async def get_evaluation_results(model_name: str):
     """Get evaluation results for a specific model from downloaded files"""
     try:
-        model_dir = os.path.join(RESULTS_DIR, model_name)
-        if not os.path.exists(model_dir):
-            raise HTTPException(status_code=404, detail=f"No evaluation directory found for {model_name}")
-
-        pattern = os.path.join(model_dir, f"{model_name}_comprehensive_results.json")
-        files = glob.glob(pattern)
+        url = f"model_evaluations/{model_name}_comprehensive_results.json"
+        file_path = Path(__file__).parent.parent / url
+        files = glob.glob(str(file_path))
 
         if not files:
             # Fallback to UI export data
@@ -64,12 +72,41 @@ async def get_evaluation_results(model_name: str):
         with open(latest_file) as f:
             results = json.load(f)
 
+        if "dataset_metrics" in results:
+            results["dataset_metrics"] = results["dataset_metrics"]
+        elif "dataset_details" in results:
+            results["dataset_metrics"] = results["dataset_details"]
         return results
-
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading results: {str(e)}")
+
+
+@router.get("/api/dataset-metrics/{model_name}")
+async def get_dataset_metrics(model_name: str, dataset: str = None):
+    """Get dataset-specific metrics for a model"""
+    try:
+        results = await get_evaluation_results(model_name)
+
+        # Extract dataset metrics
+        dataset_metrics = results.get("dataset_metrics", {})
+
+        if dataset:
+            # Return specific dataset metrics if requested
+            if dataset in dataset_metrics:
+                return {
+                    "model": model_name,
+                    "dataset": dataset,
+                    "metrics": dataset_metrics[dataset].get("metrics", {}),
+                }
+            else:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset} not found for model {model_name}")
+        else:
+            # Return all dataset metrics
+            return {"model": model_name, "dataset_metrics": dataset_metrics}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/api/models/available")
 async def get_available_models():
@@ -132,7 +169,10 @@ async def get_model_metrics(model_name: str):
         else:
             metrics = {}
 
-        return {"model": model_name, "metrics": metrics}
+        # Include dataset metrics if available
+        dataset_metrics = results.get("dataset_metrics", {})
+
+        return {"model": model_name, "metrics": metrics, "dataset_metrics": dataset_metrics}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -153,24 +193,3 @@ async def compare_models(model1: str, model2: str):
     comparison_metrics = await generate_comparison_metrics(comparison_data)
 
     return {"models": comparison_data, "comparison": comparison_metrics}
-
-
-async def generate_fallback_visualization(model_name: str, viz_type: str):
-    """Generate a simple visualization if pre-generated file is missing"""
-    try:
-        # Get model data to generate a chart
-        results = await get_evaluation_results(model_name)
-        metrics = results.get('metrics', {}) or results.get('evaluation_results', {}).get('metrics', {})
-
-        if not metrics:
-            raise HTTPException(status_code=404, detail="No metrics available for visualization")
-
-        # For now, just return a message that we need to generate visualizations
-        # In a real implementation, you could generate charts dynamically here
-        raise HTTPException(
-            status_code=404,
-            detail=f"Pre-generated visualization not found. Please generate visualizations for {model_name} first."
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating visualization: {str(e)}")
