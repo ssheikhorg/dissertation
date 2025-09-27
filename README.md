@@ -1,61 +1,23 @@
+# Evaluating and Mitigating Hallucinations in Large Language Models for Healthcare
 
-# AI Model Evaluation Framework
+## Project Overview
+This project focuses on **evaluating and mitigating hallucinations** in **Large Language Models (LLMs)** for healthcare applications. Hallucinations refer to the generation of **plausible but factually incorrect** information by LLMs, which can lead to **misdiagnoses**, **incorrect treatment recommendations**, and **other healthcare risks**. The project aims to reduce hallucination rates and improve model accuracy in healthcare contexts.
 
-## Overview
-This project implements a comprehensive framework for evaluating and comparing generative AI models through systematic testing and analysis.
+### Key Features
+- **Evaluation of multiple LLMs** including **BiomedGPT**, **GPT-3.5-Turbo**, **Medtrion-7B**, **Mistral-7B**, **Llama-2-7B**, and **Qwen-7B** on medical datasets.
+- Use of **Retrieval-Augmented Generation (RAG)** and **LoRA fine-tuning** to **reduce hallucinations** and improve model reliability.
+- **FastAPI** backend for model interaction, **AWS Lambda** for cloud deployment, and **HTML, CSS, JavaScript** for frontend display.
+- **Metrics** for evaluation include **accuracy**, **hallucination rate**, and **confidence**.
 
-## Project Description
-We implement a structured approach to assess various generative AI models using standardized methodologies and multi-dimensional evaluation criteria.
+## Datasets Used
+- **PubMedQA**: Biomedical question-answering tasks.
+- **MedQA**: Diagnostic and clinical decision-making tasks.
+- **MIMIC-CXR**: Multimodal dataset combining **X-rays** and **radiology reports**.
 
-## Approach
-We'll systematically evaluate generative AI models by:
-
-* **Standardized Testing**: Running identical prompts/tasks across all models
-* **Multi-Dimensional Evaluation**: Assessing accuracy, bias, hallucinations, and consistency
-* **Comparative Analysis**: Visualizing performance differences across domains
-
-## Methodology
-
-### Key Components
-1. **Controlled Inputs**
-   * Same prompts to all models
-   * Standardized test cases
-   * Consistent evaluation conditions
-
-2. **Quantitative Metrics**
-   * Numeric scores for comparison
-   * Performance benchmarks
-   * Statistical analysis
-
-3. **Qualitative Analysis**
-   * Human review of edge cases
-   * Detailed assessment of model responses
-   * Pattern identification
-
-4. **Domain-Specific Testing**
-   * Different knowledge areas
-   * Specialized use cases
-   * Context-specific evaluations
-
-## Dependencies
-- Python 3.13.2
-- Required packages:
-  - numpy
-  - pandas
-  - matplotlib
-  - seaborn
-  - plotly
-  - jinja2
-  - networkx
-  - pillow
-  - requests
-  - sympy
-
-## Environment Setup
-This project uses `pyenv` for Python environment management.
-
-## License
-[Add your license information here]
+## Technologies Used
+- **Backend**: FastAPI for API development and integration with models.
+- **Frontend**: HTML, CSS, and JavaScript for building the user interface.
+- **Cloud Hosting**: AWS Lambda for scalable deployment.
 
 ## Contact
 - [Sheikh Shapon](ssheikhorg@hotmail.com)

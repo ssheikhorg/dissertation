@@ -15,3 +15,4 @@ pip-log.txt
 
 cdk.out
 dependencies-layer.zip
+.DS_Store
